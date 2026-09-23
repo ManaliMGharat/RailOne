@@ -29,3 +29,11 @@ def test_get_station_by_id(client):
     res = client.get(f"/api/stations/{st_id}")
     assert res.status_code == 200
     assert res.json()["id"] == st_id
+
+def test_trigger_system_seed(client):
+    response = client.post("/api/seed")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["stations_count"] >= 24
+    assert data["trains_count"] >= 12
