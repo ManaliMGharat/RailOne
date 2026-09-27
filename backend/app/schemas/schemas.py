@@ -48,6 +48,10 @@ class MPINSetRequest(BaseModel):
 class MPINVerifyRequest(BaseModel):
     mpin: str = Field(..., min_length=4, max_length=6)
 
+class MPINLoginRequest(BaseModel):
+    username: str # email or phone
+    mpin: str = Field(..., min_length=4, max_length=6)
+
 class MPINChangeRequest(BaseModel):
     old_mpin: str = Field(..., min_length=4, max_length=6)
     new_mpin: str = Field(..., min_length=4, max_length=6)

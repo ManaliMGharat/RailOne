@@ -36,12 +36,14 @@ export const NotificationsPage: React.FC = () => {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
+      window.dispatchEvent(new Event('notifications:updated'));
     });
   };
 
   const handleMarkAllRead = () => {
     apiClient('/notifications/read-all', { method: 'POST' }).then(() => {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      window.dispatchEvent(new Event('notifications:updated'));
     });
   };
 

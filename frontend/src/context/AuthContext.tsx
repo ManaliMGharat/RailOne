@@ -7,6 +7,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  loginWithMpin: (username: string, mpin: string) => Promise<void>;
   register: (fullName: string, email: string, phone: string, password: string) => Promise<void>;
   loginWithOtp: (phone: string, otp: string) => Promise<void>;
   logout: () => void;
@@ -69,6 +70,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
     localStorage.setItem('railone_token', data.access_token);
     localStorage.setItem('railone_user', JSON.stringify(data.user));
+    localStorage.setItem('railone_remembered_user', JSON.stringify({
+      email: data.user.email,
+      phone: data.user.phone,
+      full_name: data.user.full_name
+    }));
+  };
+
+  const loginWithMpin = async (username: string, mpin: string) => {
+    const data = await apiClient<AuthResponse>('/auth/mpin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, mpin }),
+    });
+    setToken(data.access_token);
+    setUser(data.user);
+    localStorage.setItem('railone_token', data.access_token);
+    localStorage.setItem('railone_user', JSON.stringify(data.user));
+    localStorage.setItem('railone_remembered_user', JSON.stringify({
+      email: data.user.email,
+      phone: data.user.phone,
+      full_name: data.user.full_name
+    }));
   };
 
   const register = async (fullName: string, email: string, phone: string, password: string) => {
@@ -80,6 +102,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
     localStorage.setItem('railone_token', data.access_token);
     localStorage.setItem('railone_user', JSON.stringify(data.user));
+    localStorage.setItem('railone_remembered_user', JSON.stringify({
+      email: data.user.email,
+      phone: data.user.phone,
+      full_name: data.user.full_name
+    }));
   };
 
   const loginWithOtp = async (phone: string, otp: string) => {
@@ -91,6 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
     localStorage.setItem('railone_token', data.access_token);
     localStorage.setItem('railone_user', JSON.stringify(data.user));
+    localStorage.setItem('railone_remembered_user', JSON.stringify({
+      email: data.user.email,
+      phone: data.user.phone,
+      full_name: data.user.full_name
+    }));
   };
 
   const logout = () => {
@@ -175,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         loading,
         login,
+        loginWithMpin,
         register,
         loginWithOtp,
         logout,

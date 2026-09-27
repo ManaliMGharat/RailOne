@@ -62,7 +62,7 @@ export const UTSPage: React.FC = () => {
   // Recalculate Fare when stations/class/duration changes
   useEffect(() => {
     if (activeTab === 'platform') {
-      setFare(15.0 * passengerCount);
+      setFare(10.0 * passengerCount);
       return;
     }
 

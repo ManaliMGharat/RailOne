@@ -37,7 +37,13 @@ export async function apiClient<T>(
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  let cleanEndpoint = endpoint;
+  if (cleanEndpoint.startsWith('/api/') && API_BASE_URL.endsWith('/api')) {
+    cleanEndpoint = cleanEndpoint.substring(4);
+  } else if (cleanEndpoint === '/api' && API_BASE_URL.endsWith('/api')) {
+    cleanEndpoint = '';
+  }
+  const url = cleanEndpoint.startsWith('http') ? cleanEndpoint : `${API_BASE_URL}${cleanEndpoint.startsWith('/') ? '' : '/'}${cleanEndpoint}`;
 
   try {
     const response = await fetch(url, {

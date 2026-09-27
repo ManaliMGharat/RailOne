@@ -39,7 +39,37 @@ export const translations: Translations = {
   orderFood: { en: 'Order Food', hi: 'खाना ऑर्डर करें', mr: 'जेवण ऑर्डर करा' },
   fileRefund: { en: 'File Refund', hi: 'रिफंड दर्ज करें', mr: 'रिफंड अर्ज करा' },
   seasonTicket: { en: 'Season Ticket', hi: 'सीजन टिकट / पास', mr: 'मासिक पास (सीझन तिकीट)' },
+  railMadad: { en: 'Rail Madad', hi: 'रेल मदद', mr: 'रेल मदत' },
   railwaySupport: { en: 'Railway Support', hi: 'रेलवे सहायता', mr: 'रेल्वे मदत व तक्रार' },
+  goToWaves: { en: 'Go To WAVES', hi: 'WAVES पर जाएं', mr: 'WAVES कडे जा' },
+
+  // Lower Sections
+  doYouKnow: { en: 'Do You know?', hi: 'क्या आप जानते हैं?', mr: 'तुम्हाला माहीत आहे का?' },
+  followUs: { en: 'Follow Us On Social Media Platforms', hi: 'सोशल मीडिया प्लेटफॉर्म पर हमें फॉलो करें', mr: 'सोशल मीडिया प्लॅटफॉर्मवर आम्हाला फॉलो करा' },
+
+  // Navigation Items
+  home: { en: 'Home', hi: 'होम', mr: 'मुख्यपृष्ठ' },
+  myBookings: { en: 'My Bookings', hi: 'मेरी बुकिंग्स', mr: 'माझ्या बुकिंग्ज' },
+  bookings: { en: 'My Bookings', hi: 'मेरी बुकिंग्स', mr: 'माझ्या बुकिंग्ज' },
+  you: { en: 'You', hi: 'आप', mr: 'तुम्ही' },
+  menu: { en: 'Menu', hi: 'मेनू', mr: 'मेनू' },
+  wallet: { en: 'Wallet', hi: 'वॉलेट', mr: 'वॉलेट' },
+  profile: { en: 'Profile', hi: 'प्रोफ़ाइल', mr: 'माझे खाते' },
+  logout: { en: 'Logout', hi: 'लॉगआउट', mr: 'बाहेर पडा (लॉगआउट)' },
+
+  // mPIN Authentication
+  loginUsingMpin: { en: 'Login using mPIN', hi: 'mPIN का उपयोग करके लॉगिन करें', mr: 'mPIN वापरून लॉगिन करा' },
+  welcomeUser: { en: 'Welcome', hi: 'स्वागत है', mr: 'स्वागत आहे' },
+  enterMpinBelow: { en: 'Enter mPIN below', hi: 'नीचे mPIN दर्ज करें', mr: 'खाली mPIN टाका' },
+  forgotPassword: { en: 'Forgot Password?', hi: 'पासवर्ड भूल गए?', mr: 'पासवर्ड विसरलात?' },
+  resetMpin: { en: 'Reset mPIN?', hi: 'mPIN रीसेट करें?', mr: 'mPIN रीसेट करा?' },
+  enableBiometric: { en: 'Enable biometric?', hi: 'बायोमेट्रिक सक्षम करें?', mr: 'बायोमेट्रिक सक्षम करा?' },
+  biometricNotice: { 
+    en: 'By enabling biometric authentication you will be able to login through your device set biometric.', 
+    hi: 'बायोमेट्रिक प्रमाणीकरण सक्षम करने से आप अपने डिवाइस सेट बायोमेट्रिक के माध्यम से लॉगिन कर सकेंगे।', 
+    mr: 'बायोमेट्रिक प्रमाणीकरण सक्षम करून तुम्ही तुमच्या डिव्हाइस सेट बायोमेट्रिकद्वारे लॉगिन करू शकाल.' 
+  },
+  differentUser: { en: 'Different User?', hi: 'अन्य उपयोगकर्ता?', mr: 'दुसरा वापरकर्ता?' },
 
   // Common UI
   from: { en: 'From', hi: 'कहाँ से', mr: 'कुठून' },
@@ -56,11 +86,6 @@ export const translations: Translations = {
   fare: { en: 'Fare', hi: 'किराया', mr: 'भाडे' },
   cancel: { en: 'Cancel', hi: 'रद्द करें', mr: 'रद्द करा' },
   confirm: { en: 'Confirm', hi: 'पुष्टि करें', mr: 'निश्चित करा' },
-  home: { en: 'Home', hi: 'होम', mr: 'मुख्यपृष्ठ' },
-  bookings: { en: 'Bookings', hi: 'मेरी बुकिंग्स', mr: 'माझ्या बुकिंग्ज' },
-  wallet: { en: 'Wallet', hi: 'वॉलेट', mr: 'वॉलेट' },
-  profile: { en: 'Profile', hi: 'प्रोफ़ाइल', mr: 'माझे खाते' },
-  logout: { en: 'Logout', hi: 'लॉगआउट', mr: 'बाहेर पडा (लॉगआउट)' },
 };
 
 interface LanguageContextType {

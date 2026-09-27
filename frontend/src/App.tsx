@@ -23,6 +23,7 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { SupportPage } from './pages/SupportPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPage } from './pages/AdminPage';
+import { WavesPage } from './pages/WavesPage';
 
 export const App: React.FC = () => {
   return (
@@ -66,6 +67,7 @@ export const App: React.FC = () => {
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="support" element={<SupportPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="waves" element={<WavesPage />} />
 
               {/* Admin */}
               <Route path="admin" element={<AdminPage />} />

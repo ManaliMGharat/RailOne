@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Compass, Clock, MapPin, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Compass, Clock, MapPin, CheckCircle2, AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { TrainTrackingResponse } from '../types';
 import { apiClient } from '../api/client';
 
@@ -109,9 +109,14 @@ export const TrackTrainPage: React.FC = () => {
           {/* Status Highlight Banner */}
           <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-[11px] font-bold text-amber-100 uppercase tracking-wider">
-                Current Location
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-amber-100 uppercase tracking-wider">
+                  Current Location
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
+                  Demo Simulation
+                </span>
+              </div>
               <h2 className="text-xl font-extrabold flex items-center gap-2 mt-0.5">
                 <MapPin className="w-5 h-5 text-amber-200" />
                 {trackData.current_station}
@@ -127,6 +132,13 @@ export const TrackTrainPage: React.FC = () => {
               </span>
               <p className="text-[10px] text-amber-100 mt-1">Updated {trackData.last_updated}</p>
             </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-[11px] flex items-center gap-2">
+            <Info className="w-4 h-4 shrink-0 text-amber-600" />
+            <span>
+              <strong>Notice:</strong> This live train route timeline uses timetable calculation simulation. Real-time satellite CRIS/IRCTC GPS telemetry is restricted to official Indian Railways control desks.
+            </span>
           </div>
 
           {/* Timeline of Stations */}

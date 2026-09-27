@@ -1,30 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Globe, ChevronDown } from 'lucide-react';
+import { Bell, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/client';
 import { Language } from '../types';
+import { RailOneLogo } from './RailOneLogo';
 
 export const Header: React.FC = () => {
-  const { language, setLanguage, t } = useTranslation();
-  const { user, token } = useAuth();
+  const { language, setLanguage } = useTranslation();
+  const { token } = useAuth();
   const navigate = useNavigate();
 
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [unreadCount, setUnreadCount] = useState<number>(15); // Default 15 as requested in Section 5
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  const fetchUnreadCount = async () => {
+    if (!token) {
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const res = await apiClient<{ unread_count: number }>('/notifications/unread-count');
+      setUnreadCount(res.unread_count);
+    } catch {
+      // Fallback
+    }
+  };
 
   useEffect(() => {
-    // Only fetch dynamic count if authenticated (Section 34 requirement: "Do not poll notification API when user has no authentication token.")
-    if (token) {
-      apiClient<{ unread_count: number }>('/notifications/unread-count')
-        .then((res) => {
-          setUnreadCount(res.unread_count);
-        })
-        .catch(() => {
-          // keep fallback 15 on error
-        });
-    }
+    fetchUnreadCount();
+
+    // Listen for custom notifications update events
+    const handleUpdate = () => fetchUnreadCount();
+    window.addEventListener('notifications:updated', handleUpdate);
+    return () => window.removeEventListener('notifications:updated', handleUpdate);
   }, [token]);
 
   const languages: { code: Language; label: string; native: string }[] = [
@@ -34,28 +44,25 @@ export const Header: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all">
+      <div className="max-w-[480px] sm:max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* LEFT: Circular Language Switcher (A / अ) */}
+        {/* LEFT: Circular Language Button (A / अ) */}
         <div className="relative">
           <button
             onClick={() => setShowLangMenu(!showLangMenu)}
             aria-label="Switch Language"
-            className="flex items-center gap-1.5 h-10 px-3 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[#1B254B] font-semibold text-xs transition active:scale-95 shadow-xs"
+            className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-center text-[#172B63] transition active:scale-95 shadow-xs"
           >
-            <span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-[11px]">
-              A/अ
-            </span>
-            <span className="hidden sm:inline font-medium uppercase text-[11px]">
-              {language}
-            </span>
-            <ChevronDown className="w-3 h-3 text-slate-500" />
+            <div className="flex flex-col items-center leading-none select-none">
+              <span className="text-[11px] font-extrabold text-[#172B63]">A</span>
+              <span className="text-[10px] font-bold text-[#172B63]">अ</span>
+            </div>
           </button>
 
           {showLangMenu && (
-            <div className="absolute left-0 mt-2 w-44 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 animate-in fade-in zoom-in-95">
-              <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <div className="absolute left-0 mt-2 w-40 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 animate-in fade-in zoom-in-95">
+              <div className="px-3.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Select Language
               </div>
               {languages.map((l) => (
@@ -65,83 +72,40 @@ export const Header: React.FC = () => {
                     setLanguage(l.code);
                     setShowLangMenu(false);
                   }}
-                  className={`w-full text-left px-3.5 py-2 text-sm flex items-center justify-between hover:bg-slate-50 transition ${
-                    language === l.code ? 'font-bold text-indigo-600 bg-indigo-50/50' : 'text-[#1B254B]'
+                  className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition ${
+                    language === l.code ? 'font-bold text-[#0868F7] bg-blue-50/50' : 'text-[#172B63]'
                   }`}
                 >
                   <span>{l.native}</span>
-                  <span className="text-xs text-slate-400">({l.label})</span>
+                  <span className="text-[10px] text-slate-400">({l.label})</span>
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* CENTER: RailOne Geometric Logo */}
+        {/* CENTER: RailOne Logo with accent dot above 'i' */}
         <div
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 cursor-pointer select-none active:scale-98 transition"
+          className="cursor-pointer select-none active:scale-98 transition flex items-center justify-center py-1"
         >
-          {/* Geometric Diamond & Rail Track SVG Logo */}
-          <div className="relative w-8 h-8 flex items-center justify-center bg-gradient-to-tr from-blue-700 via-indigo-600 to-sky-500 rounded-xl shadow-md shadow-blue-500/20 text-white">
-            <svg
-              className="w-5 h-5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="4" y="3" width="16" height="16" rx="2" />
-              <path d="M4 11h16" />
-              <path d="M12 3v8" />
-              <path d="m8 19-2 3" />
-              <path d="m16 19 2 3" />
-            </svg>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-[#1B254B] leading-none">
-              Rail<span className="text-blue-600">One</span>
-            </span>
-            <span className="text-[9px] font-medium text-slate-400 tracking-wider hidden sm:block uppercase">
-              Simplified
-            </span>
-          </div>
+          <RailOneLogo size="md" />
         </div>
 
-        {/* RIGHT: Dynamic Notification Bell */}
-        <div className="flex items-center gap-3">
+        {/* RIGHT: Circular Notification Button with dynamic red badge */}
+        <div className="relative">
           <button
             onClick={() => navigate('/notifications')}
-            className="relative p-2.5 rounded-full hover:bg-slate-100 text-[#1B254B] transition active:scale-95"
-            aria-label="View Notifications"
+            className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-center text-[#172B63] transition active:scale-95 shadow-xs"
+            aria-label="Notifications"
           >
-            <Bell className="w-5 h-5 text-slate-700" />
+            <Bell className="w-5 h-5 text-[#172B63]" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 min-w-[19px] h-[19px] px-1 bg-red-500 text-white font-bold text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[#EF4444] text-white font-bold text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </button>
-
-          {/* Quick User Avatar if logged in */}
-          {user ? (
-            <div
-              onClick={() => navigate('/profile')}
-              className="cursor-pointer w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200 hover:ring-2 hover:ring-blue-300 transition"
-              title={user.full_name}
-            >
-              {user.full_name.charAt(0).toUpperCase()}
-            </div>
-          ) : (
-            <button
-              onClick={() => navigate('/login')}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition"
-            >
-              Login
-            </button>
-          )}
         </div>
 
       </div>

@@ -11,7 +11,7 @@ from app.auth.security import (
 )
 from app.schemas.schemas import (
     UserRegister, UserLogin, TokenResponse, UserResponse, UserUpdate,
-    MPINSetRequest, MPINVerifyRequest, MPINChangeRequest,
+    MPINSetRequest, MPINVerifyRequest, MPINLoginRequest, MPINChangeRequest,
     OTPRequest, OTPVerifyRequest, BiometricRegisterRequest, BiometricLoginRequest
 )
 
@@ -138,6 +138,27 @@ def verify_user_mpin(req: MPINVerifyRequest, current_user: User = Depends(get_cu
     if not verify_mpin(req.mpin, current_user.mpin_hash):
         raise HTTPException(status_code=401, detail="Incorrect mPIN.")
     return {"status": "success", "message": "mPIN verified successfully."}
+
+@router.post("/mpin/login", response_model=TokenResponse)
+def login_with_mpin(req: MPINLoginRequest, db: Session = Depends(get_db)):
+    identifier = req.username.strip().lower()
+    user = db.query(User).filter(
+        (User.email == identifier) | (User.phone == req.username.strip())
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found.")
+    if not user.mpin_hash:
+        raise HTTPException(status_code=400, detail="mPIN is not set for this account.")
+    if not verify_mpin(req.mpin, user.mpin_hash):
+        raise HTTPException(status_code=401, detail="Incorrect mPIN.")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled.")
+    access_token = create_access_token({"sub": str(user.id), "role": user.role})
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=serialize_user(user)
+    )
 
 @router.post("/mpin/change")
 def change_mpin(req: MPINChangeRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
