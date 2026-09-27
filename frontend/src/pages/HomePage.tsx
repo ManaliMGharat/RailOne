@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Train,
@@ -12,7 +12,6 @@ import {
   Layers,
   Sparkles,
   ArrowRight,
-  ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -24,52 +23,47 @@ export const HomePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Track image load failures for graceful fallback
+  const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
+
+  const handleImageError = (id: string) => {
+    setImageError((prev) => ({ ...prev, [id]: true }));
+  };
+
   // Dynamic user greeting name
   const greetingName = user?.full_name || 'Manali Manish Gharat';
 
-  // 1. Journey Planner: 3 Large Cards in One Horizontal Row
+  // 1. Journey Planner: 3 Large Cards in One Horizontal Row with Real Artwork
   const journeyCards = [
     {
       id: 'reserved',
       title: 'Reserved',
-      subtitle: 'Book Train',
       path: '/reserved',
-      color: 'bg-white hover:bg-slate-50 border-slate-100',
-      badge: 'Intercity',
-      badgeBg: 'bg-blue-50 text-[#0868F7]',
-      icon: (
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-50 text-[#0868F7] flex items-center justify-center shadow-xs">
-          <Train className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.2]" />
-        </div>
-      ),
+      imageWebp: '/images/journey/reserved.webp',
+      imageJpg: '/images/journey/reserved.jpg',
+      alt: 'Reserved railway coach interior',
+      fallbackBg: 'bg-gradient-to-br from-blue-50 to-indigo-100',
+      fallbackIcon: <Train className="w-7 h-7 text-[#0868F7]" />,
     },
     {
       id: 'unreserved',
       title: 'Unreserved',
-      subtitle: 'UTS Ticket',
       path: '/unreserved',
-      color: 'bg-white hover:bg-slate-50 border-slate-100',
-      badge: 'Suburban',
-      badgeBg: 'bg-sky-50 text-sky-600',
-      icon: (
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shadow-xs">
-          <Ticket className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.2]" />
-        </div>
-      ),
+      imageWebp: '/images/journey/unreserved.webp',
+      imageJpg: '/images/journey/unreserved.jpg',
+      alt: 'Unreserved passenger railway coach',
+      fallbackBg: 'bg-gradient-to-br from-sky-50 to-blue-100',
+      fallbackIcon: <Ticket className="w-7 h-7 text-sky-600" />,
     },
     {
       id: 'platform',
       title: 'Platform',
-      subtitle: 'Station Pass',
       path: '/platform',
-      color: 'bg-white hover:bg-slate-50 border-slate-100',
-      badge: '2-Hr Pass',
-      badgeBg: 'bg-emerald-50 text-emerald-600',
-      icon: (
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs">
-          <MapPin className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.2]" />
-        </div>
-      ),
+      imageWebp: '/images/journey/platform.webp',
+      imageJpg: '/images/journey/platform.jpg',
+      alt: 'Modern railway train at station platform',
+      fallbackBg: 'bg-gradient-to-br from-emerald-50 to-teal-100',
+      fallbackIcon: <MapPin className="w-7 h-7 text-emerald-600" />,
     },
   ];
 
@@ -174,35 +168,61 @@ export const HomePage: React.FC = () => {
         </p>
       </section>
 
-      {/* 3. JOURNEY PLANNER — 3 LARGE CARDS IN ONE HORIZONTAL ROW */}
+      {/* 3. JOURNEY PLANNER — 3 LARGE CARDS IN ONE HORIZONTAL ROW WITH REAL ARTWORK */}
       <section className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-extrabold uppercase tracking-wider text-[#172B63]">
             {t('journeyPlanner')}
           </h2>
-          <span className="text-[11px] font-bold text-[#0868F7] cursor-pointer hover:underline" onClick={() => navigate('/reserved')}>
+          <span
+            className="text-[11px] font-bold text-[#0868F7] cursor-pointer hover:underline"
+            onClick={() => navigate('/reserved')}
+          >
             All Modes
           </span>
         </div>
 
-        {/* 3 Large Cards in One Horizontal Row */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        {/* 3 Large Cards in One Horizontal Row: [ Reserved ] [ Unreserved ] [ Platform ] */}
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-5">
           {journeyCards.map((card) => (
             <div
               key={card.id}
+              role="button"
+              tabIndex={0}
+              aria-label={card.title}
               onClick={() => navigate(card.path)}
-              className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-white border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-200 cursor-pointer p-3 sm:p-5 flex flex-col items-center text-center justify-between min-h-[140px] sm:min-h-[160px] active:scale-97 select-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(card.path);
+                }
+              }}
+              className="group flex flex-col items-center cursor-pointer select-none outline-hidden focus-visible:ring-2 focus-visible:ring-[#0868F7] rounded-[24px] active:scale-97 transition-all"
             >
-              <div className="transition-transform duration-200 group-hover:scale-105">
-                {card.icon}
+              {/* Card Artwork Image Container (Rounded 22-26px, Object Cover) */}
+              <div className="w-full aspect-[4/3] rounded-[22px] sm:rounded-[26px] overflow-hidden bg-slate-100 shadow-[0_3px_14px_rgba(0,0,0,0.06)] border border-slate-200/80 relative">
+                {!imageError[card.id] ? (
+                  <picture>
+                    <source srcSet={card.imageWebp} type="image/webp" />
+                    <img
+                      src={card.imageJpg}
+                      alt={card.alt}
+                      loading="eager"
+                      onError={() => handleImageError(card.id)}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </picture>
+                ) : (
+                  <div className={`w-full h-full flex flex-col items-center justify-center ${card.fallbackBg}`}>
+                    {card.fallbackIcon}
+                  </div>
+                )}
               </div>
 
-              <div className="w-full mt-2">
-                <h3 className="font-black text-xs sm:text-sm text-[#172B63] leading-tight">
+              {/* Label */}
+              <div className="mt-2 text-center">
+                <span className="font-extrabold text-xs sm:text-sm text-[#172B63] block leading-tight group-hover:text-[#0868F7] transition-colors">
                   {card.title}
-                </h3>
-                <span className={`inline-block mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${card.badgeBg}`}>
-                  {card.badge}
                 </span>
               </div>
             </div>
@@ -228,8 +248,17 @@ export const HomePage: React.FC = () => {
             return (
               <div
                 key={item.id}
+                role="button"
+                tabIndex={0}
+                aria-label={item.title}
                 onClick={() => navigate(item.path)}
-                className={`group p-4 sm:p-5 rounded-3xl ${item.bg} border border-black/5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[110px] sm:min-h-[120px] active:scale-97 select-none`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(item.path);
+                  }
+                }}
+                className={`group p-4 sm:p-5 rounded-3xl ${item.bg} border border-black/5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[110px] sm:min-h-[120px] active:scale-97 select-none outline-hidden focus-visible:ring-2 focus-visible:ring-[#0868F7]`}
               >
                 <div className="flex items-center justify-between">
                   <div className={`w-10 h-10 rounded-2xl bg-white/60 backdrop-blur-xs flex items-center justify-center ${item.iconColor} shadow-2xs group-hover:scale-105 transition-transform`}>
