@@ -23,6 +23,8 @@ from app.routers.notification_router import router as notification_router
 from app.routers.support_router import router as support_router
 from app.routers.passenger_router import router as passenger_router
 from app.routers.admin_router import router as admin_router
+from app.routers.user_router import router as user_router
+from app.routers.ticket_router import router as ticket_router
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
@@ -72,6 +74,8 @@ app.include_router(notification_router, prefix=settings.API_V1_STR)
 app.include_router(support_router, prefix=settings.API_V1_STR)
 app.include_router(passenger_router, prefix=settings.API_V1_STR)
 app.include_router(admin_router, prefix=settings.API_V1_STR)
+app.include_router(user_router, prefix=settings.API_V1_STR)
+app.include_router(ticket_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

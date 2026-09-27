@@ -705,6 +705,52 @@ def seed_database():
         db.commit()
         print("Admin user 'admin@railone.in' created!")
 
+    # Fresh Production-Style Accounts
+    fresh_passenger = db.query(User).filter(User.email == "manali.gharat@railone.in").first()
+    if not fresh_passenger:
+        fresh_passenger = User(
+            full_name="Manali Gharat",
+            email="manali.gharat@railone.in",
+            phone="9820012345",
+            hashed_password=hash_password("RailOne#2026!Manali"),
+            mpin_hash=hash_mpin("8421"),
+            role="user",
+            dob="1995-04-18",
+            gender="Female",
+            address="Seawoods-Darave, Navi Mumbai, Maharashtra",
+            emergency_contact="+91 98200 98201",
+            is_active=True,
+            biometric_enabled=True
+        )
+        db.add(fresh_passenger)
+        db.commit()
+        db.refresh(fresh_passenger)
+
+        p_wallet = Wallet(user_id=fresh_passenger.id, balance=5000.0)
+        db.add(p_wallet)
+        db.commit()
+        print("Fresh passenger 'manali.gharat@railone.in' created!")
+
+    fresh_admin = db.query(User).filter(User.email == "railadmin@railone.in").first()
+    if not fresh_admin:
+        fresh_admin = User(
+            full_name="RailOne Chief Controller",
+            email="railadmin@railone.in",
+            phone="9820099999",
+            hashed_password=hash_password("RailAdmin#Secure2026"),
+            mpin_hash=hash_mpin("7391"),
+            role="admin",
+            is_active=True
+        )
+        db.add(fresh_admin)
+        db.commit()
+        db.refresh(fresh_admin)
+
+        fa_wallet = Wallet(user_id=fresh_admin.id, balance=100000.0)
+        db.add(fa_wallet)
+        db.commit()
+        print("Fresh admin 'railadmin@railone.in' created!")
+
     # 4. Seed PNR Records
     existing_pnr = db.query(PNRRecord).filter(PNRRecord.pnr_number == "8421095812").first()
     if not existing_pnr:
