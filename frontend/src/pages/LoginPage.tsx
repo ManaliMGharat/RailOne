@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Lock, Mail, Phone, ArrowRight, ShieldCheck, Sparkles, KeyRound, AlertCircle, X, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Lock, Mail, Phone, ArrowRight, Sparkles, AlertCircle, X, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { apiClient } from '../api/client';
@@ -12,25 +12,21 @@ export const LoginPage: React.FC = () => {
   const { user, token, login, loginWithMpin, loginWithOtp, setMPIN, verifyMPIN } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Remembered user from local storage
+  // Remembered user from local storage (if previously authenticated on this device)
   const [rememberedUser, setRememberedUser] = useState<{ email: string; phone: string; full_name: string } | null>(() => {
     try {
       const saved = localStorage.getItem('railone_remembered_user');
       if (saved) return JSON.parse(saved);
-      const active = localStorage.getItem('railone_user');
-      if (active) return JSON.parse(active);
     } catch {}
-    // Default passenger profile if no remembered user yet
-    return {
-      email: 'manali@railone.in',
-      phone: '9820098200',
-      full_name: 'Manali Manish Gharat'
-    };
+    return null;
   });
 
-  // UI Modes: 'mpin' (Default screenshot view) | 'password' | 'otp'
-  const [authMode, setAuthMode] = useState<'mpin' | 'password' | 'otp'>('mpin');
+  // UI Modes: 'password' (Default for new users) | 'mpin' (if remembered on device) | 'otp'
+  const [authMode, setAuthMode] = useState<'mpin' | 'password' | 'otp'>(() => {
+    return rememberedUser ? 'mpin' : 'password';
+  });
 
   // mPIN state
   const [mpin, setMpin] = useState<string>('');
@@ -38,13 +34,13 @@ export const LoginPage: React.FC = () => {
   const [mpinError, setMpinError] = useState<string | null>(null);
 
   // Standard Login state
-  const [identifier, setIdentifier] = useState<string>('manali@railone.in');
-  const [password, setPassword] = useState<string>('manali123');
+  const [identifier, setIdentifier] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [pwdLoading, setPwdLoading] = useState<boolean>(false);
   const [pwdError, setPwdError] = useState<string | null>(null);
 
   // OTP Login state
-  const [otpPhone, setOtpPhone] = useState<string>('9820098200');
+  const [otpPhone, setOtpPhone] = useState<string>('');
   const [otpCode, setOtpCode] = useState<string>('');
   const [otpSent, setOtpSent] = useState<boolean>(false);
   const [demoHint, setDemoHint] = useState<string | null>(null);
@@ -57,13 +53,17 @@ export const LoginPage: React.FC = () => {
 
   // Reset mPIN flow states: 1 = Phone/OTP Request, 2 = Verify OTP, 3 = Enter New 6-digit mPIN, 4 = Success
   const [resetStep, setResetStep] = useState<number>(1);
-  const [resetPhone, setResetPhone] = useState<string>(rememberedUser?.phone || '9820098200');
+  const [resetPhone, setResetPhone] = useState<string>(rememberedUser?.phone || '');
   const [resetOtp, setResetOtp] = useState<string>('');
   const [resetDemoHint, setResetDemoHint] = useState<string | null>(null);
   const [newMpin, setNewMpin] = useState<string>('');
   const [confirmMpin, setConfirmMpin] = useState<string>('');
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState<boolean>(false);
+
+  const getRedirectDestination = () => {
+    return (location.state as any)?.from?.pathname || '/profile';
+  };
 
   // Handle mPIN submission
   const handleMpinSubmit = async (pinValue?: string) => {
@@ -77,20 +77,25 @@ export const LoginPage: React.FC = () => {
     setMpinError(null);
 
     try {
-      const username = rememberedUser?.email || rememberedUser?.phone || 'manali@railone.in';
+      const username = rememberedUser?.email || rememberedUser?.phone;
+      if (!username) {
+        setMpinError('No remembered account on this device. Please sign in with password.');
+        setAuthMode('password');
+        return;
+      }
 
       // 1. If currently have valid token, verify mPIN via POST /api/auth/mpin/verify
       if (token) {
         const verified = await verifyMPIN(pinToVerify);
         if (verified) {
-          navigate('/');
+          navigate(getRedirectDestination(), { replace: true });
           return;
         }
       }
 
       // 2. Perform direct mPIN authentication via POST /api/auth/mpin/login
       await loginWithMpin(username, pinToVerify);
-      navigate('/');
+      navigate(getRedirectDestination(), { replace: true });
     } catch (err: any) {
       setMpinError(err.message || 'Incorrect mPIN. Please check and try again.');
       setMpin('');
@@ -102,13 +107,18 @@ export const LoginPage: React.FC = () => {
   // Password Login
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!identifier.trim() || !password) {
+      setPwdError('Please enter your email or registered mobile and password.');
+      return;
+    }
+
     setPwdLoading(true);
     setPwdError(null);
     try {
       await login(identifier.trim(), password);
-      navigate('/');
+      navigate(getRedirectDestination(), { replace: true });
     } catch (err: any) {
-      setPwdError(err.message || 'Invalid credentials.');
+      setPwdError(err.message || 'Invalid email/mobile or password.');
     } finally {
       setPwdLoading(false);
     }
@@ -116,16 +126,17 @@ export const LoginPage: React.FC = () => {
 
   // OTP Login: Request
   const handleRequestOtp = async () => {
-    if (!otpPhone || otpPhone.length < 10) {
+    if (!otpPhone || otpPhone.replace(/\D/g, '').length < 10) {
       setOtpError('Please enter a valid 10-digit mobile number.');
       return;
     }
     setOtpLoading(true);
     setOtpError(null);
     try {
+      const cleanPhone = otpPhone.replace(/\D/g, '').slice(-10);
       const res = await apiClient<any>('/auth/otp/request', {
         method: 'POST',
-        body: JSON.stringify({ phone: otpPhone }),
+        body: JSON.stringify({ phone: cleanPhone }),
       });
       setOtpSent(true);
       setDemoHint(res.demo_hint);
@@ -144,8 +155,9 @@ export const LoginPage: React.FC = () => {
     setOtpLoading(true);
     setOtpError(null);
     try {
-      await loginWithOtp(otpPhone, otpCode);
-      navigate('/');
+      const cleanPhone = otpPhone.replace(/\D/g, '').slice(-10);
+      await loginWithOtp(cleanPhone, otpCode.trim());
+      navigate(getRedirectDestination(), { replace: true });
     } catch (err: any) {
       setOtpError(err.message || 'Invalid or expired OTP.');
     } finally {
@@ -155,12 +167,17 @@ export const LoginPage: React.FC = () => {
 
   // Reset mPIN: Step 1 (Request OTP)
   const handleResetRequestOtp = async () => {
+    if (!resetPhone || resetPhone.replace(/\D/g, '').length < 10) {
+      setResetError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
     setResetLoading(true);
     setResetError(null);
     try {
+      const cleanPhone = resetPhone.replace(/\D/g, '').slice(-10);
       const res = await apiClient<any>('/auth/otp/request', {
         method: 'POST',
-        body: JSON.stringify({ phone: resetPhone }),
+        body: JSON.stringify({ phone: cleanPhone }),
       });
       setResetDemoHint(res.demo_hint);
       setResetOtp(res.demo_hint || '');
@@ -177,7 +194,8 @@ export const LoginPage: React.FC = () => {
     setResetLoading(true);
     setResetError(null);
     try {
-      await loginWithOtp(resetPhone, resetOtp);
+      const cleanPhone = resetPhone.replace(/\D/g, '').slice(-10);
+      await loginWithOtp(cleanPhone, resetOtp.trim());
       setResetStep(3);
     } catch (err: any) {
       setResetError(err.message || 'Invalid OTP code.');
@@ -188,8 +206,8 @@ export const LoginPage: React.FC = () => {
 
   // Reset mPIN: Step 3 (Set New mPIN)
   const handleSaveNewMpin = async () => {
-    if (newMpin.length !== 6) {
-      setResetError('New mPIN must be 6 numerical digits.');
+    if (newMpin.length !== 6 && newMpin.length !== 4) {
+      setResetError('New mPIN must be 4 or 6 numerical digits.');
       return;
     }
     if (newMpin !== confirmMpin) {
@@ -208,20 +226,13 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // Switch to Different User
-  const handleDifferentUser = () => {
-    setAuthMode('password');
-  };
-
   const displayName = rememberedUser?.full_name || user?.full_name || 'Passenger';
 
   return (
     <div className="w-full max-w-[430px] mx-auto py-6 sm:py-10 px-2 animate-in fade-in duration-300">
-      
-      {/* ================= SCREENSHOT 1: MPIN AUTHENTICATION SCREEN ================= */}
-      {authMode === 'mpin' ? (
+      {/* ================= MPIN AUTHENTICATION SCREEN (IF USER REMEMBERED) ================= */}
+      {authMode === 'mpin' && rememberedUser ? (
         <div className="space-y-7">
-          
           {/* Top: RailOne logo centered */}
           <div className="flex justify-center pt-2">
             <RailOneLogo size="lg" />
@@ -293,45 +304,30 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Section 7: Biometric Authentication Toggle */}
+          {/* Biometric Authentication Toggle */}
           <BiometricToggle
             enabled={user?.biometric_enabled || false}
             onToggle={() => {}}
             onBiometricLogin={() => {
               if (token) {
-                navigate('/');
+                navigate(getRedirectDestination());
               }
             }}
           />
 
-          {/* Section 8: Different User? */}
+          {/* Different User? */}
           <div className="pt-2 text-center">
             <button
               type="button"
-              onClick={handleDifferentUser}
+              onClick={() => setAuthMode('password')}
               className="text-sm font-extrabold text-[#0868F7] hover:underline cursor-pointer active:scale-95 transition"
             >
               {t('differentUser')}
             </button>
           </div>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div className="mt-8 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 text-[11px] text-slate-500 space-y-1">
-            <div className="font-bold text-[#172B63] flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-              <span>Development Access Hint</span>
-            </div>
-            <div>
-              Passenger: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700">8421</code> (Manali Gharat) or <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700">1234</code>
-            </div>
-            <div>
-              Admin: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700">7391</code> / <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700">9999</code>
-            </div>
-          </div>
-
         </div>
       ) : (
-        /* ================= STANDARD LOGIN / DIFFERENT USER VIEW ================= */
+        /* ================= STANDARD LOGIN VIEW ================= */
         <div className="space-y-6">
           <div className="text-center space-y-2">
             <div className="flex justify-center">
@@ -346,7 +342,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setAuthMode('password')}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition ${
+              className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                 authMode === 'password' ? 'bg-white text-[#0868F7] shadow-xs' : 'text-slate-500'
               }`}
             >
@@ -355,7 +351,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setAuthMode('otp')}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition ${
+              className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                 authMode === 'otp' ? 'bg-white text-[#0868F7] shadow-xs' : 'text-slate-500'
               }`}
             >
@@ -366,8 +362,9 @@ export const LoginPage: React.FC = () => {
           {authMode === 'password' && (
             <form onSubmit={handlePasswordLogin} className="space-y-4">
               {pwdError && (
-                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-200">
-                  {pwdError}
+                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{pwdError}</span>
                 </div>
               )}
               <div>
@@ -381,7 +378,7 @@ export const LoginPage: React.FC = () => {
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="manali@railone.in or mobile"
+                    placeholder="e.g. name@example.com or 10-digit mobile"
                     className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 text-sm font-semibold text-[#172B63] focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden"
                   />
                 </div>
@@ -407,10 +404,19 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={pwdLoading}
-                className="w-full py-3.5 rounded-2xl bg-[#0868F7] hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 active:scale-98 transition flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-[#0868F7] hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
               >
-                {pwdLoading ? 'Signing in...' : 'Sign In'}
-                <ArrowRight className="w-4 h-4" />
+                {pwdLoading ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
           )}
@@ -418,8 +424,9 @@ export const LoginPage: React.FC = () => {
           {authMode === 'otp' && (
             <div className="space-y-4">
               {otpError && (
-                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-200">
-                  {otpError}
+                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{otpError}</span>
                 </div>
               )}
               <div>
@@ -433,7 +440,7 @@ export const LoginPage: React.FC = () => {
                       type="tel"
                       value={otpPhone}
                       onChange={(e) => setOtpPhone(e.target.value)}
-                      placeholder="10-digit mobile"
+                      placeholder="10-digit mobile number"
                       className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 text-sm font-semibold text-[#172B63] focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden"
                     />
                   </div>
@@ -441,7 +448,7 @@ export const LoginPage: React.FC = () => {
                     type="button"
                     onClick={handleRequestOtp}
                     disabled={otpLoading}
-                    className="px-4 py-3 bg-blue-50 text-[#0868F7] hover:bg-blue-100 font-bold text-xs rounded-2xl transition border border-blue-200"
+                    className="px-4 py-3 bg-blue-50 text-[#0868F7] hover:bg-blue-100 font-bold text-xs rounded-2xl transition border border-blue-200 cursor-pointer disabled:opacity-60"
                   >
                     {otpSent ? 'Resend' : 'Send OTP'}
                   </button>
@@ -471,31 +478,46 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={otpLoading}
-                    className="w-full py-3.5 rounded-2xl bg-[#0868F7] text-white font-bold text-sm shadow-md hover:bg-blue-700 transition"
+                    className="w-full py-3.5 rounded-2xl bg-[#0868F7] text-white font-bold text-sm shadow-md hover:bg-blue-700 transition cursor-pointer disabled:opacity-70"
                   >
-                    Verify & Login
+                    {otpLoading ? 'Verifying OTP...' : 'Verify & Sign In'}
                   </button>
                 </form>
               )}
             </div>
           )}
 
-          {/* Quick return to mPIN */}
-          <div className="text-center pt-2">
-            <button
-              type="button"
-              onClick={() => setAuthMode('mpin')}
-              className="text-xs font-bold text-[#0868F7] hover:underline"
-            >
-              Back to mPIN Login
-            </button>
-          </div>
+          {rememberedUser && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setAuthMode('mpin')}
+                className="text-xs font-bold text-[#0868F7] hover:underline cursor-pointer"
+              >
+                Back to mPIN Login ({rememberedUser.full_name})
+              </button>
+            </div>
+          )}
 
           <div className="text-center pt-1 border-t border-slate-100 text-xs text-slate-500">
             Don't have an account?{' '}
             <Link to="/register" className="font-bold text-[#0868F7] hover:underline">
-              Register now
+              Create Account
             </Link>
+          </div>
+
+          {/* Informational test credentials hint */}
+          <div className="mt-6 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 text-[11px] text-slate-500 space-y-1">
+            <div className="font-bold text-[#172B63] flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+              <span>Available Test Accounts</span>
+            </div>
+            <div>
+              Passenger: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">manali@railone.in</code> / <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">manali123</code> (mPIN: <code className="font-mono bg-white px-1 rounded text-blue-700">1234</code>)
+            </div>
+            <div>
+              Admin: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">admin@railone.in</code> / <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">admin123</code> (mPIN: <code className="font-mono bg-white px-1 rounded text-blue-700">9999</code>)
+            </div>
           </div>
         </div>
       )}
@@ -510,13 +532,13 @@ export const LoginPage: React.FC = () => {
               </h3>
               <button
                 onClick={() => setShowForgotPwdModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              RailOne accounts are connected to the official railway security layer. To reset your master password:
+              RailOne accounts are connected to the official railway security layer. To access your account:
             </p>
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-2">
               <p>
@@ -531,7 +553,7 @@ export const LoginPage: React.FC = () => {
                 setShowForgotPwdModal(false);
                 setAuthMode('otp');
               }}
-              className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition"
+              className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition cursor-pointer"
             >
               Use Phone OTP Login Instead
             </button>
@@ -539,17 +561,17 @@ export const LoginPage: React.FC = () => {
         </div>
       )}
 
-      {/* ================= RESET MPIN MODAL (FUNCTIONAL OTP FLOW) ================= */}
+      {/* ================= RESET MPIN MODAL ================= */}
       {showResetMpinModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-extrabold text-[#172B63]">
-                Reset Your 6-Digit mPIN
+                Reset Your mPIN
               </h3>
               <button
                 onClick={() => setShowResetMpinModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -578,7 +600,7 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   onClick={handleResetRequestOtp}
                   disabled={resetLoading}
-                  className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm"
+                  className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm cursor-pointer"
                 >
                   {resetLoading ? 'Sending...' : 'Send Verification OTP'}
                 </button>
@@ -608,7 +630,7 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   onClick={handleResetVerifyOtp}
                   disabled={resetLoading}
-                  className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm"
+                  className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm cursor-pointer"
                 >
                   {resetLoading ? 'Verifying...' : 'Verify OTP'}
                 </button>
@@ -619,18 +641,18 @@ export const LoginPage: React.FC = () => {
             {resetStep === 3 && (
               <div className="space-y-3">
                 <p className="text-xs text-slate-500">
-                  Set a new 6-digit mPIN for instant logins:
+                  Set a new 4-6 digit mPIN for instant logins:
                 </p>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    New 6-Digit mPIN
+                    New mPIN
                   </label>
                   <input
                     type="password"
                     maxLength={6}
                     value={newMpin}
                     onChange={(e) => setNewMpin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6 digits"
+                    placeholder="Enter 4-6 digits"
                     className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center text-sm font-bold tracking-widest text-[#172B63]"
                   />
                 </div>
@@ -643,7 +665,7 @@ export const LoginPage: React.FC = () => {
                     maxLength={6}
                     value={confirmMpin}
                     onChange={(e) => setConfirmMpin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Confirm 6 digits"
+                    placeholder="Confirm digits"
                     className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center text-sm font-bold tracking-widest text-[#172B63]"
                   />
                 </div>
@@ -651,7 +673,7 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   onClick={handleSaveNewMpin}
                   disabled={resetLoading}
-                  className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition shadow-sm"
+                  className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition shadow-sm cursor-pointer"
                 >
                   {resetLoading ? 'Saving...' : 'Save New mPIN'}
                 </button>
@@ -668,7 +690,7 @@ export const LoginPage: React.FC = () => {
                   mPIN Reset Successfully!
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Your new 6-digit mPIN is active. You can now login instantly using it.
+                  Your new mPIN is active. You can now login instantly using it.
                 </p>
                 <button
                   type="button"
@@ -676,17 +698,15 @@ export const LoginPage: React.FC = () => {
                     setShowResetMpinModal(false);
                     setAuthMode('mpin');
                   }}
-                  className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition"
+                  className="w-full py-3 rounded-2xl bg-[#0868F7] text-white font-bold text-xs hover:bg-blue-700 transition cursor-pointer"
                 >
                   Return to mPIN Login
                 </button>
               </div>
             )}
-
           </div>
         </div>
       )}
-
     </div>
   );
 };

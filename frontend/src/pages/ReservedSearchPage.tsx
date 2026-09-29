@@ -42,7 +42,16 @@ export const ReservedSearchPage: React.FC = () => {
   const [selectedClass, setSelectedClass] = useState<string>('CC');
   const [passengers, setPassengers] = useState<
     Array<{ name: string; age: number; gender: string; berth_preference: string }>
-  >([{ name: user ? user.full_name : 'Manali Manish Gharat', age: 29, gender: 'Female', berth_preference: 'Window' }]);
+  >([{ name: user ? user.full_name : '', age: 28, gender: 'Male', berth_preference: 'Window' }]);
+
+  useEffect(() => {
+    if (user?.full_name) {
+      setPassengers((prev) =>
+        prev.map((p, idx) => (idx === 0 && !p.name ? { ...p, name: user.full_name } : p))
+      );
+    }
+  }, [user]);
+
   const [bookingLoading, setBookingLoading] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState<Booking | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);

@@ -36,8 +36,14 @@ export const UTSPage: React.FC = () => {
   const [passengerCount, setPassengerCount] = useState<number>(1);
   const [classType, setClassType] = useState<string>('Second Class');
   const [seasonDuration, setSeasonDuration] = useState<string>('Monthly');
-  const [passengerName, setPassengerName] = useState<string>(user ? user.full_name : 'Manali Manish Gharat');
+  const [passengerName, setPassengerName] = useState<string>(user ? user.full_name : '');
   const [passengerAge, setPassengerAge] = useState<number>(29);
+
+  useEffect(() => {
+    if (user?.full_name) {
+      setPassengerName(user.full_name);
+    }
+  }, [user]);
 
   // Fare calculation state
   const [fare, setFare] = useState<number>(20.0);

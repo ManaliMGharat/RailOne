@@ -23,10 +23,21 @@ export const ProfilePage: React.FC = () => {
 
   const [editMode, setEditMode] = useState<boolean>(false);
   const [fullName, setFullName] = useState<string>(user?.full_name || '');
-  const [dob, setDob] = useState<string>(user?.dob || '1995-04-18');
-  const [gender, setGender] = useState<string>(user?.gender || 'Female');
-  const [address, setAddress] = useState<string>(user?.address || 'Seawoods, Navi Mumbai, Maharashtra 400706');
-  const [emergencyContact, setEmergencyContact] = useState<string>(user?.emergency_contact || '+91 98200 98201');
+  const [dob, setDob] = useState<string>(user?.dob || '');
+  const [gender, setGender] = useState<string>(user?.gender || 'Not Specified');
+  const [address, setAddress] = useState<string>(user?.address || '');
+  const [emergencyContact, setEmergencyContact] = useState<string>(user?.emergency_contact || '');
+
+  // Keep form in sync when authenticated user profile updates or changes
+  React.useEffect(() => {
+    if (user) {
+      setFullName(user.full_name || '');
+      setDob(user.dob || '');
+      setGender(user.gender || 'Not Specified');
+      setAddress(user.address || '');
+      setEmergencyContact(user.emergency_contact || '');
+    }
+  }, [user]);
 
   // mPIN modal state
   const [showMpinModal, setShowMpinModal] = useState<boolean>(false);

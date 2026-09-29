@@ -15,7 +15,7 @@ export const translations: Translations = {
   tagline: { en: 'Your journey, simplified.', hi: 'आपकी यात्रा, सरल और सुगम।', mr: 'तुमचा प्रवास, सोपा आणि सुखकर.' },
   
   // Header & Greetings
-  greeting: { en: 'Hi, Manali Manish Gharat!', hi: 'नमस्ते, मनाली मनीष घरात!', mr: 'नमस्कार, मनाली मनीष घरात!' },
+  greeting: { en: 'Hi, Passenger!', hi: 'नमस्ते, यात्री!', mr: 'नमस्कार, प्रवासी!' },
   headerSubtitle: { en: 'Where would you like to travel today?', hi: 'आज आप कहाँ यात्रा करना चाहते हैं?', mr: 'आज तुम्हाला कुठे प्रवास करायचा आहे?' },
   notifications: { en: 'Notifications', hi: 'सूचनाएँ', mr: 'सूचना' },
 

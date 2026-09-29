@@ -261,3 +261,34 @@ def test_admin_authorization_enforced():
     stats = allowed.json()
     assert stats["total_stations"] >= 152
     assert stats["total_trains"] > 0
+
+def test_multi_user_isolation():
+    # 1. Unauthenticated request to /api/auth/me is rejected
+    unauth = client.get("/api/auth/me")
+    assert unauth.status_code == 401
+
+    # 2. Authenticate as Manali
+    login_a = client.post("/api/auth/login", json={"username": "manali@railone.in", "password": "manali123"})
+    assert login_a.status_code == 200
+    token_a = login_a.json()["access_token"]
+    profile_a = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token_a}"}).json()
+    assert profile_a["full_name"] == "Manali Manish Gharat"
+    assert profile_a["email"] == "manali@railone.in"
+
+    # 3. Create a second distinct user
+    random_id = os.urandom(4).hex()
+    reg_b = client.post("/api/auth/register", json={
+        "full_name": "Test Passenger B",
+        "email": f"test_b_{random_id}@railone.in",
+        "phone": f"88{random_id[:8]}",
+        "password": "password_test_123"
+    })
+    assert reg_b.status_code == 200
+    token_b = reg_b.json()["access_token"]
+
+    # 4. User B gets their OWN profile, never Manali's
+    profile_b = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token_b}"}).json()
+    assert profile_b["full_name"] == "Test Passenger B"
+    assert profile_b["email"] == f"test_b_{random_id}@railone.in"
+    assert profile_b["id"] != profile_a["id"]
+

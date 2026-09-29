@@ -65,3 +65,47 @@ export function validateEmail(email: string): { valid: boolean; error?: string }
   }
   return { valid: true };
 }
+
+/**
+ * Validates passenger full name
+ */
+export function validateFullName(name: string): { valid: boolean; error?: string } {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { valid: false, error: 'Full name is required.' };
+  }
+  if (trimmed.length < 2) {
+    return { valid: false, error: 'Full name must be at least 2 characters.' };
+  }
+  if (!/^[a-zA-Z\s.'-]+$/.test(trimmed)) {
+    return { valid: false, error: 'Full name can only contain letters and standard punctuation.' };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validates account password
+ */
+export function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password) {
+    return { valid: false, error: 'Password is required.' };
+  }
+  if (password.length < 6) {
+    return { valid: false, error: 'Password must be at least 6 characters long.' };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validates confirm password against password
+ */
+export function validateConfirmPassword(password: string, confirmPassword: string): { valid: boolean; error?: string } {
+  if (!confirmPassword) {
+    return { valid: false, error: 'Please confirm your password.' };
+  }
+  if (password !== confirmPassword) {
+    return { valid: false, error: 'Passwords do not match.' };
+  }
+  return { valid: true };
+}
+

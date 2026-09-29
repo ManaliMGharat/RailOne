@@ -23,8 +23,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('railone_token'));
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('railone_user');
-    return saved ? JSON.parse(saved) : null;
+    const savedToken = localStorage.getItem('railone_token');
+    if (!savedToken) return null;
+    try {
+      const saved = localStorage.getItem('railone_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -32,6 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentToken = localStorage.getItem('railone_token');
     if (!currentToken) {
       setUser(null);
+      setToken(null);
+      localStorage.removeItem('railone_user');
       setLoading(false);
       return;
     }
@@ -43,6 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If 401, client.ts automatically triggers logout
       if (err.status === 401) {
         logout();
+      } else {
+        const saved = localStorage.getItem('railone_user');
+        if (saved) {
+          try {
+            setUser(JSON.parse(saved));
+          } catch {
+            setUser(null);
+          }
+        }
       }
     } finally {
       setLoading(false);
@@ -56,6 +73,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleUnauthorized = () => {
       setUser(null);
       setToken(null);
+      localStorage.removeItem('railone_token');
+      localStorage.removeItem('railone_user');
+      localStorage.removeItem('railone_remembered_user');
     };
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
@@ -135,6 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('railone_token');
     localStorage.removeItem('railone_user');
+    localStorage.removeItem('railone_remembered_user');
   };
 
   const updateProfile = async (data: Partial<User>) => {

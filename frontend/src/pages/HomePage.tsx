@@ -31,7 +31,7 @@ export const HomePage: React.FC = () => {
   };
 
   // Dynamic user greeting name
-  const greetingName = user?.full_name || 'Manali Manish Gharat';
+  const greetingName = user?.full_name || 'Passenger';
 
   // 1. Journey Planner: 3 Large Cards in One Horizontal Row with Real Artwork
   const journeyCards = [
