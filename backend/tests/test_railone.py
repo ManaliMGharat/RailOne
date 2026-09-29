@@ -202,6 +202,10 @@ def test_wallet_and_booking_workflow():
     w_res = client.get("/api/wallet", headers=headers)
     assert w_res.status_code == 200
     init_balance = w_res.json()["balance"]
+    if init_balance < 500:
+        client.post("/api/wallet/add", json={"amount": 1000.0, "payment_method": "UPI"}, headers=headers)
+        w_res = client.get("/api/wallet", headers=headers)
+        init_balance = w_res.json()["balance"]
     assert init_balance > 0
 
     # Book a ticket
@@ -219,7 +223,7 @@ def test_wallet_and_booking_workflow():
         ],
         "payment_method": "Wallet"
     }, headers=headers)
-    assert book_res.status_code == 200
+    assert book_res.status_code == 200, f"Booking failed: {book_res.text}"
     b_data = book_res.json()
     assert b_data["status"] == "Confirmed"
     assert len(b_data["pnr_number"]) == 10

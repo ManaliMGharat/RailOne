@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Lock, Mail, Phone, ArrowRight, Sparkles, AlertCircle, X, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, Phone, ArrowRight, AlertCircle, X, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { apiClient } from '../api/client';
@@ -43,7 +43,6 @@ export const LoginPage: React.FC = () => {
   const [otpPhone, setOtpPhone] = useState<string>('');
   const [otpCode, setOtpCode] = useState<string>('');
   const [otpSent, setOtpSent] = useState<boolean>(false);
-  const [demoHint, setDemoHint] = useState<string | null>(null);
   const [otpLoading, setOtpLoading] = useState<boolean>(false);
   const [otpError, setOtpError] = useState<string | null>(null);
 
@@ -55,7 +54,6 @@ export const LoginPage: React.FC = () => {
   const [resetStep, setResetStep] = useState<number>(1);
   const [resetPhone, setResetPhone] = useState<string>(rememberedUser?.phone || '');
   const [resetOtp, setResetOtp] = useState<string>('');
-  const [resetDemoHint, setResetDemoHint] = useState<string | null>(null);
   const [newMpin, setNewMpin] = useState<string>('');
   const [confirmMpin, setConfirmMpin] = useState<string>('');
   const [resetError, setResetError] = useState<string | null>(null);
@@ -134,13 +132,12 @@ export const LoginPage: React.FC = () => {
     setOtpError(null);
     try {
       const cleanPhone = otpPhone.replace(/\D/g, '').slice(-10);
-      const res = await apiClient<any>('/auth/otp/request', {
+      await apiClient<any>('/auth/otp/request', {
         method: 'POST',
         body: JSON.stringify({ phone: cleanPhone }),
       });
       setOtpSent(true);
-      setDemoHint(res.demo_hint);
-      setOtpCode(res.demo_hint || '');
+      setOtpCode('');
     } catch (err: any) {
       setOtpError(err.message || 'Failed to send OTP.');
     } finally {
@@ -175,12 +172,11 @@ export const LoginPage: React.FC = () => {
     setResetError(null);
     try {
       const cleanPhone = resetPhone.replace(/\D/g, '').slice(-10);
-      const res = await apiClient<any>('/auth/otp/request', {
+      await apiClient<any>('/auth/otp/request', {
         method: 'POST',
         body: JSON.stringify({ phone: cleanPhone }),
       });
-      setResetDemoHint(res.demo_hint);
-      setResetOtp(res.demo_hint || '');
+      setResetOtp('');
       setResetStep(2);
     } catch (err: any) {
       setResetError(err.message || 'Failed to send OTP for mPIN reset.');
@@ -457,11 +453,6 @@ export const LoginPage: React.FC = () => {
 
               {otpSent && (
                 <form onSubmit={handleVerifyOtp} className="space-y-3 pt-2">
-                  {demoHint && (
-                    <div className="p-2.5 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200">
-                      Development Demo OTP: <span className="font-mono font-bold text-emerald-900">{demoHint}</span>
-                    </div>
-                  )}
                   <div>
                     <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                       Enter 6-Digit OTP
@@ -504,20 +495,6 @@ export const LoginPage: React.FC = () => {
             <Link to="/register" className="font-bold text-[#0868F7] hover:underline">
               Create Account
             </Link>
-          </div>
-
-          {/* Informational test credentials hint */}
-          <div className="mt-6 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 text-[11px] text-slate-500 space-y-1">
-            <div className="font-bold text-[#172B63] flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-              <span>Available Test Accounts</span>
-            </div>
-            <div>
-              Passenger: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">manali@railone.in</code> / <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">manali123</code> (mPIN: <code className="font-mono bg-white px-1 rounded text-blue-700">1234</code>)
-            </div>
-            <div>
-              Admin: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">admin@railone.in</code> / <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-blue-700 font-bold">admin123</code> (mPIN: <code className="font-mono bg-white px-1 rounded text-blue-700">9999</code>)
-            </div>
           </div>
         </div>
       )}
@@ -613,11 +590,6 @@ export const LoginPage: React.FC = () => {
                 <p className="text-xs text-slate-500">
                   Enter the 6-digit OTP code sent to {resetPhone}:
                 </p>
-                {resetDemoHint && (
-                  <div className="p-2 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-xl">
-                    Demo OTP: <span className="font-mono font-bold">{resetDemoHint}</span>
-                  </div>
-                )}
                 <input
                   type="text"
                   maxLength={6}
