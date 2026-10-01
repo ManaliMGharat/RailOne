@@ -47,10 +47,13 @@ export function validateMPIN(mpin: string): { valid: boolean; error?: string } {
  * Validates 10-digit Indian mobile number
  */
 export function validateMobileNumber(phone: string): { valid: boolean; error?: string } {
-  const cleaned = phone.replace(/[\s\-\+]/g, '');
-  const digits = cleaned.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
-  if (!/^[6-9]\d{9}$/.test(digits)) {
-    return { valid: false, error: 'Please enter a valid 10-digit Indian mobile number.' };
+  const trimmed = (phone || '').trim();
+  if (!trimmed) {
+    return { valid: false, error: 'Mobile number is required.' };
+  }
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length !== 10 || !/^[6-9]/.test(digits)) {
+    return { valid: false, error: 'Enter a valid 10-digit mobile number starting with 6–9.' };
   }
   return { valid: true };
 }

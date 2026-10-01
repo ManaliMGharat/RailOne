@@ -1,5 +1,7 @@
 import sys
 import os
+import random
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 
@@ -40,7 +42,7 @@ def test_auth_registration():
     res = client.post("/api/auth/register", json={
         "full_name": "Test Passenger",
         "email": new_email,
-        "phone": f"91{os.urandom(4).hex()[:8]}",
+        "phone": f"98{uuid.uuid4().int % 100000000:08d}",
         "password": "securepassword123"
     })
     assert res.status_code == 200
@@ -284,7 +286,7 @@ def test_multi_user_isolation():
     reg_b = client.post("/api/auth/register", json={
         "full_name": "Test Passenger B",
         "email": f"test_b_{random_id}@railone.in",
-        "phone": f"88{random_id[:8]}",
+        "phone": f"88{uuid.uuid4().int % 100000000:08d}",
         "password": "password_test_123"
     })
     assert reg_b.status_code == 200

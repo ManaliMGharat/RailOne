@@ -36,6 +36,31 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 1. Remove every character that is not 0-9
+    // 2. Limit the resulting value to 10 digits
+    // 3. Update the field with the sanitized value
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setPhone(digitsOnly);
+    clearFieldError('phone');
+  };
+
+  const handlePhonePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text');
+    const digitsOnly = pasted.replace(/\D/g, '').slice(0, 10);
+    setPhone(digitsOnly);
+    clearFieldError('phone');
+  };
+
+  const handlePhoneDrop = (e: React.DragEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const dropped = e.dataTransfer.getData('text');
+    const digitsOnly = dropped.replace(/\D/g, '').slice(0, 10);
+    setPhone(digitsOnly);
+    clearFieldError('phone');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -52,7 +77,7 @@ export const RegisterPage: React.FC = () => {
     // 2. Validate Mobile Number (Indian 10-digit mobile starting with 6-9)
     const phoneCheck = validateMobileNumber(phone);
     if (!phoneCheck.valid) {
-      newErrors.phone = phoneCheck.error || 'Please enter a valid 10-digit Indian mobile number starting with 6-9.';
+      newErrors.phone = phoneCheck.error || 'Enter a valid 10-digit mobile number starting with 6–9.';
     }
 
     // 3. Validate Email
@@ -164,12 +189,14 @@ export const RegisterPage: React.FC = () => {
               <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
               <input
                 type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                autoComplete="tel"
                 required
                 value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  clearFieldError('phone');
-                }}
+                onChange={handlePhoneChange}
+                onPaste={handlePhonePaste}
+                onDrop={handlePhoneDrop}
                 placeholder="10-digit mobile number (e.g. 9876543210)"
                 className={`w-full pl-10 pr-4 py-3 rounded-2xl border font-semibold text-sm text-[#172B63] focus:bg-white focus:outline-hidden transition ${
                   fieldErrors.phone

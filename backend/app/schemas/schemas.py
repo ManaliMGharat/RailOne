@@ -13,13 +13,13 @@ class UserRegister(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_indian_mobile(cls, v: str) -> str:
-        cleaned = re.sub(r"[\s\-\+]", "", v)
+        if not v or not isinstance(v, str):
+            raise ValueError("Mobile number is required.")
+        cleaned = re.sub(r"[\s\-\+]", "", v.strip())
         if cleaned.startswith("91") and len(cleaned) == 12:
             cleaned = cleaned[2:]
-        if len(cleaned) != 10 or cleaned[0] not in "6789":
+        if not re.match(r"^[6-9][0-9]{9}$", cleaned):
             raise ValueError("Phone number must be a valid 10-digit Indian mobile number starting with 6-9.")
-        if not re.match(r"^[6-9][0-9a-fA-F]{9}$", cleaned):
-            raise ValueError("Phone number must contain only valid digits.")
         return cleaned
 
     @field_validator("full_name")
