@@ -23,10 +23,24 @@ def file_refund(
     if booking.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Unauthorized access to this booking.")
 
-    # Check if a refund has already been filed for this booking
+    # Check if a refund has already been filed or already credited for this booking
     existing = db.query(Refund).filter(Refund.booking_id == booking.id).first()
     if existing:
-        raise HTTPException(status_code=400, detail=f"A refund request ({existing.refund_id}) already exists with status: {existing.status}.")
+        if existing.status in ["Completed", "Approved", "Processed"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"A refund of ₹{existing.amount:.2f} has already been credited for this booking ({existing.refund_id})."
+            )
+        raise HTTPException(
+            status_code=400,
+            detail=f"A refund request ({existing.refund_id}) already exists with status: {existing.status}."
+        )
+
+    if booking.status in ["Cancelled", "Refunded"]:
+        raise HTTPException(
+            status_code=400,
+            detail="This booking has already been cancelled and processed for refund."
+        )
 
     refund_ref = f"RFD-{datetime.now(timezone.utc).strftime('%Y%m')}-{secrets.randbelow(90000) + 10000}"
     refund = Refund(

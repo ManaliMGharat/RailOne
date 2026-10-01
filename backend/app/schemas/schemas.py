@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+import re
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,6 +9,26 @@ class UserRegister(BaseModel):
     email: EmailStr
     phone: str = Field(..., min_length=10, max_length=15)
     password: str = Field(..., min_length=6)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_indian_mobile(cls, v: str) -> str:
+        cleaned = re.sub(r"[\s\-\+]", "", v)
+        if cleaned.startswith("91") and len(cleaned) == 12:
+            cleaned = cleaned[2:]
+        if len(cleaned) != 10 or cleaned[0] not in "6789":
+            raise ValueError("Phone number must be a valid 10-digit Indian mobile number starting with 6-9.")
+        if not re.match(r"^[6-9][0-9a-fA-F]{9}$", cleaned):
+            raise ValueError("Phone number must contain only valid digits.")
+        return cleaned
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str) -> str:
+        trimmed = v.strip()
+        if len(trimmed) < 2:
+            raise ValueError("Full name must be at least 2 characters long.")
+        return trimmed
 
 class UserLogin(BaseModel):
     username: str # email or phone

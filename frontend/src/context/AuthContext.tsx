@@ -15,6 +15,7 @@ interface AuthContextType {
   setMPIN: (pin: string) => Promise<void>;
   verifyMPIN: (pin: string) => Promise<boolean>;
   enableBiometrics: () => Promise<boolean>;
+  disableBiometrics: () => Promise<boolean>;
   refreshUser: () => Promise<void>;
 }
 
@@ -221,6 +222,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const disableBiometrics = async (): Promise<boolean> => {
+    try {
+      await apiClient('/auth/biometric/disable', {
+        method: 'POST',
+      });
+      if (user) {
+        const u = { ...user, biometric_enabled: false };
+        setUser(u);
+        localStorage.setItem('railone_user', JSON.stringify(u));
+      }
+      return true;
+    } catch (err: any) {
+      alert(err.message || 'Failed to disable biometric authentication');
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -236,6 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMPIN,
         verifyMPIN,
         enableBiometrics,
+        disableBiometrics,
         refreshUser,
       }}
     >

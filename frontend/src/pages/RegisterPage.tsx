@@ -24,54 +24,70 @@ export const RegisterPage: React.FC = () => {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
 
     setError(null);
+    const newErrors: Record<string, string> = {};
 
     // 1. Validate Full Name
     const nameCheck = validateFullName(fullName);
     if (!nameCheck.valid) {
-      setError(nameCheck.error || 'Please enter a valid full name.');
+      newErrors.fullName = nameCheck.error || 'Please enter a valid full name.';
+    }
+
+    // 2. Validate Mobile Number (Indian 10-digit mobile starting with 6-9)
+    const phoneCheck = validateMobileNumber(phone);
+    if (!phoneCheck.valid) {
+      newErrors.phone = phoneCheck.error || 'Please enter a valid 10-digit Indian mobile number starting with 6-9.';
+    }
+
+    // 3. Validate Email
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.valid) {
+      newErrors.email = emailCheck.error || 'Please enter a valid email address.';
+    }
+
+    // 4. Validate Password (min 6 characters)
+    const pwdCheck = validatePassword(password);
+    if (!pwdCheck.valid) {
+      newErrors.password = pwdCheck.error || 'Password must be at least 6 characters long.';
+    }
+
+    // 5. Validate Confirm Password (must match password)
+    const confirmCheck = validateConfirmPassword(password, confirmPassword);
+    if (!confirmCheck.valid) {
+      newErrors.confirmPassword = confirmCheck.error || 'Passwords do not match.';
+    }
+
+    // If any validation failed, show all errors simultaneously (BUG_002, BUG_003, BUG_004)
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      setError('Please resolve all highlighted errors before proceeding.');
       return;
     }
 
-    // 2. Validate Mobile Number (Indian 10-digit mobile)
-    const phoneCheck = validateMobileNumber(phone);
-    if (!phoneCheck.valid) {
-      setError(phoneCheck.error || 'Please enter a valid 10-digit Indian mobile number.');
-      return;
-    }
+    setFieldErrors({});
 
     // Clean phone number (strip +91/spaces/dashes)
     const cleanedPhone = phone.replace(/[\s\-\+]/g, '');
     const normalizedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12
       ? cleanedPhone.slice(2)
       : cleanedPhone;
-
-    // 3. Validate Email
-    const emailCheck = validateEmail(email);
-    if (!emailCheck.valid) {
-      setError(emailCheck.error || 'Please enter a valid email address.');
-      return;
-    }
     const normalizedEmail = email.trim().toLowerCase();
-
-    // 4. Validate Password
-    const pwdCheck = validatePassword(password);
-    if (!pwdCheck.valid) {
-      setError(pwdCheck.error || 'Password must be at least 6 characters long.');
-      return;
-    }
-
-    // 5. Validate Confirm Password
-    const confirmCheck = validateConfirmPassword(password, confirmPassword);
-    if (!confirmCheck.valid) {
-      setError(confirmCheck.error || 'Passwords do not match.');
-      return;
-    }
 
     setLoading(true);
     try {
@@ -110,7 +126,7 @@ export const RegisterPage: React.FC = () => {
       )}
 
       <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs" noValidate>
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
               Full Name
@@ -121,11 +137,23 @@ export const RegisterPage: React.FC = () => {
                 type="text"
                 required
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  clearFieldError('fullName');
+                }}
                 placeholder="e.g. Rahul Sharma"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-semibold text-sm text-[#172B63] focus:bg-white focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden transition"
+                className={`w-full pl-10 pr-4 py-3 rounded-2xl border font-semibold text-sm text-[#172B63] focus:bg-white focus:outline-hidden transition ${
+                  fieldErrors.fullName
+                    ? 'border-red-400 bg-red-50/30 focus:ring-2 focus:ring-red-400'
+                    : 'border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#0868F7]'
+                }`}
               />
             </div>
+            {fieldErrors.fullName && (
+              <p className="mt-1 text-[11px] font-bold text-red-600 animate-in fade-in">
+                {fieldErrors.fullName}
+              </p>
+            )}
           </div>
 
           <div>
@@ -138,11 +166,23 @@ export const RegisterPage: React.FC = () => {
                 type="tel"
                 required
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="10-digit mobile number"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-semibold text-sm text-[#172B63] focus:bg-white focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden transition"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  clearFieldError('phone');
+                }}
+                placeholder="10-digit mobile number (e.g. 9876543210)"
+                className={`w-full pl-10 pr-4 py-3 rounded-2xl border font-semibold text-sm text-[#172B63] focus:bg-white focus:outline-hidden transition ${
+                  fieldErrors.phone
+                    ? 'border-red-400 bg-red-50/30 focus:ring-2 focus:ring-red-400'
+                    : 'border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#0868F7]'
+                }`}
               />
             </div>
+            {fieldErrors.phone && (
+              <p className="mt-1 text-[11px] font-bold text-red-600 animate-in fade-in">
+                {fieldErrors.phone}
+              </p>
+            )}
           </div>
 
           <div>
@@ -155,11 +195,23 @@ export const RegisterPage: React.FC = () => {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearFieldError('email');
+                }}
                 placeholder="e.g. rahul@example.com"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-semibold text-sm text-[#172B63] focus:bg-white focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden transition"
+                className={`w-full pl-10 pr-4 py-3 rounded-2xl border font-semibold text-sm text-[#172B63] focus:bg-white focus:outline-hidden transition ${
+                  fieldErrors.email
+                    ? 'border-red-400 bg-red-50/30 focus:ring-2 focus:ring-red-400'
+                    : 'border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#0868F7]'
+                }`}
               />
             </div>
+            {fieldErrors.email && (
+              <p className="mt-1 text-[11px] font-bold text-red-600 animate-in fade-in">
+                {fieldErrors.email}
+              </p>
+            )}
           </div>
 
           <div>
@@ -172,11 +224,23 @@ export const RegisterPage: React.FC = () => {
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearFieldError('password');
+                }}
                 placeholder="At least 6 characters"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-semibold text-sm text-[#172B63] focus:bg-white focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden transition"
+                className={`w-full pl-10 pr-4 py-3 rounded-2xl border font-semibold text-sm text-[#172B63] focus:bg-white focus:outline-hidden transition ${
+                  fieldErrors.password
+                    ? 'border-red-400 bg-red-50/30 focus:ring-2 focus:ring-red-400'
+                    : 'border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#0868F7]'
+                }`}
               />
             </div>
+            {fieldErrors.password && (
+              <p className="mt-1 text-[11px] font-bold text-red-600 animate-in fade-in">
+                {fieldErrors.password}
+              </p>
+            )}
           </div>
 
           <div>
@@ -189,11 +253,23 @@ export const RegisterPage: React.FC = () => {
                 type="password"
                 required
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  clearFieldError('confirmPassword');
+                }}
                 placeholder="Re-enter your password"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-semibold text-sm text-[#172B63] focus:bg-white focus:ring-2 focus:ring-[#0868F7] focus:outline-hidden transition"
+                className={`w-full pl-10 pr-4 py-3 rounded-2xl border font-semibold text-sm text-[#172B63] focus:bg-white focus:outline-hidden transition ${
+                  fieldErrors.confirmPassword
+                    ? 'border-red-400 bg-red-50/30 focus:ring-2 focus:ring-red-400'
+                    : 'border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#0868F7]'
+                }`}
               />
             </div>
+            {fieldErrors.confirmPassword && (
+              <p className="mt-1 text-[11px] font-bold text-red-600 animate-in fade-in">
+                {fieldErrors.confirmPassword}
+              </p>
+            )}
           </div>
 
           <div className="p-3 bg-blue-50/70 rounded-2xl text-[#0868F7] text-[11px] font-medium flex items-center gap-2 border border-blue-100">

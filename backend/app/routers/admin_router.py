@@ -95,12 +95,21 @@ def process_refund(
     if not refund:
         raise HTTPException(status_code=404, detail="Refund not found.")
 
+    if refund.status in ["Approved", "Processed", "Completed"] and req.status in ["Approved", "Processed", "Completed"]:
+        raise HTTPException(status_code=400, detail="This refund has already been approved and credited.")
+
     refund.status = req.status
     refund.admin_remarks = req.admin_remarks
     refund.processed_at = datetime.now(timezone.utc)
 
     # If processed/approved, credit the user's wallet
-    if req.status in ["Approved", "Processed"]:
+    if req.status in ["Approved", "Processed", "Completed"]:
+        booking = db.query(Booking).filter(Booking.id == refund.booking_id).first()
+        if booking:
+            booking.status = "Refunded"
+            for t in booking.tickets:
+                t.status = "CANCELLED"
+
         wallet = db.query(Wallet).filter(Wallet.user_id == refund.user_id).first()
         if wallet:
             wallet.balance += refund.amount

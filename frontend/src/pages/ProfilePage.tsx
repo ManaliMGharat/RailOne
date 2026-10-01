@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon,
@@ -14,11 +14,13 @@ import {
   AlertCircle,
   KeyRound,
   Shield,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 export const ProfilePage: React.FC = () => {
-  const { user, logout, updateProfile, setMPIN, enableBiometrics } = useAuth();
+  const { user, logout, updateProfile, setMPIN, enableBiometrics, disableBiometrics } = useAuth();
   const navigate = useNavigate();
 
   const [editMode, setEditMode] = useState<boolean>(false);
@@ -39,12 +41,35 @@ export const ProfilePage: React.FC = () => {
     }
   }, [user]);
 
-  // mPIN modal state
+  // mPIN modal state (BUG_007)
   const [showMpinModal, setShowMpinModal] = useState<boolean>(false);
   const [newMpin, setNewMpin] = useState<string>('');
+  const [confirmMpin, setConfirmMpin] = useState<string>('');
+  const [mpinError, setMpinError] = useState<string | null>(null);
   const [mpinMsg, setMpinMsg] = useState<string | null>(null);
 
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
+
+  // Prevent background scrolling when mPIN modal is open (BUG_009)
+  useBodyScrollLock(showMpinModal);
+
+  // Cancel / Close mPIN modal completely resetting inputs and errors (BUG_007)
+  const handleCloseMpinModal = () => {
+    setNewMpin('');
+    setConfirmMpin('');
+    setMpinError(null);
+    setMpinMsg(null);
+    setShowMpinModal(false);
+  };
+
+  useEffect(() => {
+    if (!showMpinModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleCloseMpinModal();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMpinModal]);
 
   if (!user) {
     return (
@@ -81,20 +106,23 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleSetMpin = async () => {
+    setMpinError(null);
     if (!newMpin.match(/^\d{4,6}$/)) {
-      alert('mPIN must be a 4 or 6 digit number.');
+      setMpinError('mPIN must be a 4 or 6 digit number.');
+      return;
+    }
+    if (newMpin !== confirmMpin) {
+      setMpinError('mPIN and Confirm mPIN do not match.');
       return;
     }
     try {
       await setMPIN(newMpin);
       setMpinMsg('mPIN updated and encrypted server-side.');
       setTimeout(() => {
-        setShowMpinModal(false);
-        setMpinMsg(null);
-        setNewMpin('');
+        handleCloseMpinModal();
       }, 1500);
     } catch (err: any) {
-      alert(err.message || 'Failed to update mPIN');
+      setMpinError(err.message || 'Failed to update mPIN');
     }
   };
 
@@ -282,16 +310,21 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={enableBiometrics}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
-                user.biometric_enabled
-                  ? 'bg-emerald-100 text-emerald-800 cursor-default'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              {user.biometric_enabled ? 'Enabled' : 'Enable Passkey'}
-            </button>
+            {user.biometric_enabled ? (
+              <button
+                onClick={disableBiometrics}
+                className="px-3.5 py-1.5 rounded-xl font-bold transition bg-white border border-rose-200 text-rose-600 hover:bg-rose-50"
+              >
+                Disable Biometric
+              </button>
+            ) : (
+              <button
+                onClick={enableBiometrics}
+                className="px-3.5 py-1.5 rounded-xl font-bold transition bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+              >
+                Enable Passkey
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -307,31 +340,83 @@ export const ProfilePage: React.FC = () => {
         </button>
       </div>
 
-      {/* mPIN MODAL */}
+      {/* mPIN MODAL (BUG_007 & BUG_009) */}
       {showMpinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-xs bg-white rounded-3xl p-5 space-y-4 shadow-xl border border-slate-100">
-            <h3 className="font-bold text-base text-[#1B254B] text-center">Set Secure mPIN</h3>
+        <div 
+          onClick={handleCloseMpinModal}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs bg-white rounded-3xl p-5 space-y-4 shadow-xl border border-slate-100 cursor-default"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-[#1B254B]">Set Secure mPIN</h3>
+              <button
+                onClick={handleCloseMpinModal}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {mpinError && (
+              <div className="p-2.5 rounded-xl bg-red-50 text-red-700 text-xs font-semibold border border-red-200 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                <span>{mpinError}</span>
+              </div>
+            )}
+
             {mpinMsg ? (
-              <div className="py-4 text-center text-emerald-600 font-bold text-xs">{mpinMsg}</div>
+              <div className="py-4 text-center text-emerald-600 font-bold text-xs flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{mpinMsg}</span>
+              </div>
             ) : (
               <div className="space-y-3">
-                <input
-                  type="password"
-                  maxLength={6}
-                  value={newMpin}
-                  onChange={(e) => setNewMpin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Enter 4-6 digit PIN"
-                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center font-mono text-xl tracking-widest font-black"
-                />
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Enter New mPIN (4-6 digits)
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={newMpin}
+                    onChange={(e) => {
+                      setNewMpin(e.target.value.replace(/\D/g, ''));
+                      setMpinError(null);
+                    }}
+                    placeholder="Enter 4-6 digit PIN"
+                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center font-mono text-xl tracking-widest font-black focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Confirm New mPIN
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={confirmMpin}
+                    onChange={(e) => {
+                      setConfirmMpin(e.target.value.replace(/\D/g, ''));
+                      setMpinError(null);
+                    }}
+                    placeholder="Re-enter mPIN"
+                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center font-mono text-xl tracking-widest font-black focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
                 <button
                   onClick={handleSetMpin}
-                  className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition"
+                  className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm active:scale-98"
                 >
                   Save mPIN
                 </button>
                 <button
-                  onClick={() => setShowMpinModal(false)}
+                  onClick={handleCloseMpinModal}
                   className="w-full py-2 text-slate-400 hover:text-slate-600 text-xs font-semibold"
                 >
                   Cancel

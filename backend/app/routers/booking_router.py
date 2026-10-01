@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.all_models import (
-    User, Booking, Ticket, Wallet, WalletTransaction, Payment, Notification, PNRRecord
+    User, Booking, Ticket, Wallet, WalletTransaction, Payment, Notification, PNRRecord, Refund
 )
 from app.auth.security import get_current_user
 from app.schemas.schemas import (
@@ -207,9 +207,29 @@ def cancel_booking(booking_id: int, current_user: User = Depends(get_current_use
         )
         db.add(tx)
 
+    # Synchronize Refund record (BUG_012: status becomes Completed when wallet is credited)
+    existing_refund = db.query(Refund).filter(Refund.booking_id == booking.id).first()
+    if existing_refund:
+        existing_refund.status = "Completed"
+        existing_refund.amount = refund_amt
+        existing_refund.admin_remarks = "Refund credited to RailOne Wallet upon cancellation (10% cancellation charge deducted)."
+        existing_refund.processed_at = datetime.now(timezone.utc)
+    else:
+        new_refund = Refund(
+            refund_id=f"RFD-{datetime.now(timezone.utc).strftime('%Y%m')}-{secrets.randbelow(90000) + 10000}",
+            booking_id=booking.id,
+            user_id=booking.user_id,
+            amount=refund_amt,
+            reason="Ticket Cancellation",
+            status="Completed",
+            admin_remarks="Automatically credited to RailOne Wallet (10% cancellation charge deducted).",
+            processed_at=datetime.now(timezone.utc)
+        )
+        db.add(new_refund)
+
     notif = Notification(
         user_id=booking.user_id,
-        title="Booking Cancelled",
+        title="Booking Cancelled & Refunded",
         message=f"Booking {booking.booking_id} cancelled. ₹{refund_amt:.2f} credited to your RailOne Wallet.",
         type="refund"
     )

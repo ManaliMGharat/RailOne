@@ -248,8 +248,19 @@ def login_biometric(req: BiometricLoginRequest, db: Session = Depends(get_db)):
         user=serialize_user(user)
     )
 
+@router.post("/biometric/disable")
+def disable_biometric(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    current_user.biometric_enabled = False
+    current_user.biometric_credential_id = None
+    db.commit()
+    return {"status": "success", "message": "Biometric authentication disabled successfully.", "user": serialize_user(current_user)}
+
 # --- Deterministic Logout ---
 @router.post("/logout")
 def logout():
     # Client deterministically clears JWT and state
     return {"status": "success", "message": "Logged out successfully."}
+

@@ -12,11 +12,20 @@ import {
   CheckCircle2,
   QrCode,
   X,
+  UserCheck,
 } from 'lucide-react';
 import { Station, Train, Booking } from '../types';
 import { apiClient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StationAutocomplete, StationSwapButton } from '../components/StationAutocomplete';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+
+const createEmptyPassenger = () => ({
+  name: '',
+  age: '' as unknown as number,
+  gender: 'Male',
+  berth_preference: 'No Preference',
+});
 
 export const ReservedSearchPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -37,20 +46,24 @@ export const ReservedSearchPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Booking Modal State
+  // Booking Modal State (BUG_010: No random/preset passenger details)
   const [selectedTrain, setSelectedTrain] = useState<Train | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('CC');
   const [passengers, setPassengers] = useState<
     Array<{ name: string; age: number; gender: string; berth_preference: string }>
-  >([{ name: user ? user.full_name : '', age: 28, gender: 'Male', berth_preference: 'Window' }]);
+  >([createEmptyPassenger()]);
+
+  // Lock body scroll when booking modal is open (BUG_009)
+  useBodyScrollLock(Boolean(selectedTrain));
 
   useEffect(() => {
-    if (user?.full_name) {
-      setPassengers((prev) =>
-        prev.map((p, idx) => (idx === 0 && !p.name ? { ...p, name: user.full_name } : p))
-      );
-    }
-  }, [user]);
+    if (!selectedTrain) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedTrain(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTrain]);
 
   const [bookingLoading, setBookingLoading] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState<Booking | null>(null);
@@ -131,13 +144,36 @@ export const ReservedSearchPage: React.FC = () => {
     setSelectedClass(cCode);
     setBookingSuccess(null);
     setBookingError(null);
+    setPassengers([createEmptyPassenger()]);
+  };
+
+  const handleFillFromProfile = () => {
+    if (!user) return;
+    let calculatedAge: number | '' = '';
+    if (user.dob) {
+      const birthYear = new Date(user.dob).getFullYear();
+      const currentYear = new Date().getFullYear();
+      if (!isNaN(birthYear) && currentYear > birthYear) {
+        calculatedAge = currentYear - birthYear;
+      }
+    }
+    setPassengers((prev) => {
+      const next = [...prev];
+      next[0] = {
+        name: user.full_name || '',
+        age: (calculatedAge || '') as unknown as number,
+        gender: user.gender === 'Female' ? 'Female' : (user.gender === 'Other' ? 'Other' : 'Male'),
+        berth_preference: next[0]?.berth_preference || 'No Preference',
+      };
+      return next;
+    });
   };
 
   const handleAddPassenger = () => {
     if (passengers.length >= 6) return;
     setPassengers([
       ...passengers,
-      { name: '', age: 30, gender: 'Male', berth_preference: 'No Preference' },
+      createEmptyPassenger(),
     ]);
   };
 
@@ -149,10 +185,16 @@ export const ReservedSearchPage: React.FC = () => {
   const handleConfirmBooking = async () => {
     if (!selectedTrain) return;
 
-    // Validate passengers
-    for (const p of passengers) {
-      if (!p.name.trim()) {
-        setBookingError('Please enter passenger full name.');
+    // Strictly validate passenger inputs (BUG_010: no random/fake data)
+    for (let i = 0; i < passengers.length; i++) {
+      const p = passengers[i];
+      if (!p.name || p.name.trim().length < 2) {
+        setBookingError(`Passenger #${i + 1}: Please enter a valid full name (minimum 2 letters).`);
+        return;
+      }
+      const ageNum = Number(p.age);
+      if (!ageNum || ageNum < 1 || ageNum > 120) {
+        setBookingError(`Passenger #${i + 1}: Please enter a valid age between 1 and 120.`);
         return;
       }
     }
@@ -375,9 +417,16 @@ export const ReservedSearchPage: React.FC = () => {
       )}
 
       {/* BOOKING MODAL */}
+      {/* Booking Modal */}
       {selectedTrain && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100">
+        <div 
+          onClick={() => setSelectedTrain(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 cursor-default"
+          >
             {/* Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 text-white flex items-center justify-between">
               <div>
@@ -465,7 +514,20 @@ export const ReservedSearchPage: React.FC = () => {
                   {passengers.map((p, idx) => (
                     <div key={idx} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                        <span>Passenger #{idx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          <span>Passenger #{idx + 1}</span>
+                          {idx === 0 && user?.full_name && (
+                            <button
+                              type="button"
+                              onClick={handleFillFromProfile}
+                              className="px-2 py-0.5 rounded-lg bg-blue-100/80 hover:bg-blue-200 text-blue-800 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                              title="Auto-fill passenger details from your profile"
+                            >
+                              <UserCheck className="w-3 h-3" />
+                              <span>Use My Profile</span>
+                            </button>
+                          )}
+                        </div>
                         {passengers.length > 1 && (
                           <button
                             type="button"
@@ -480,7 +542,7 @@ export const ReservedSearchPage: React.FC = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <input
                           type="text"
-                          placeholder="Full Name"
+                          placeholder="Full Name (as per ID)"
                           value={p.name}
                           onChange={(e) => {
                             const updated = [...passengers];
@@ -495,10 +557,10 @@ export const ReservedSearchPage: React.FC = () => {
                             placeholder="Age"
                             min="1"
                             max="120"
-                            value={p.age}
+                            value={p.age ?? ''}
                             onChange={(e) => {
                               const updated = [...passengers];
-                              updated[idx].age = parseInt(e.target.value) || 25;
+                              updated[idx].age = e.target.value === '' ? ('' as unknown as number) : parseInt(e.target.value, 10);
                               setPassengers(updated);
                             }}
                             className="w-20 p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-medium"

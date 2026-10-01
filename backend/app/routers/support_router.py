@@ -61,7 +61,7 @@ def create_support_ticket(
         message=req.message.strip(),
         category=req.category,
         priority=req.priority,
-        status="Open"
+        status="Submitted"
     )
     db.add(ticket)
 

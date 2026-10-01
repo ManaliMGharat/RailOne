@@ -12,9 +12,10 @@ import {
   X,
   Train,
 } from 'lucide-react';
-import { Restaurant, MenuItem, FoodOrder } from '../types';
+import { Restaurant, MenuItem, FoodOrder, Booking } from '../types';
 import { apiClient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 export const FoodOrderingPage: React.FC = () => {
   const { user } = useAuth();
@@ -27,13 +28,38 @@ export const FoodOrderingPage: React.FC = () => {
   // Cart State: Map of menuItemId -> { item: MenuItem, qty: number, restaurant: Restaurant }
   const [cart, setCart] = useState<{ [id: number]: { item: MenuItem; qty: number; restaurant: Restaurant } }>({});
   const [showCheckout, setShowCheckout] = useState<boolean>(false);
-  const [trainNumber, setTrainNumber] = useState<string>('12124');
-  const [pnrNumber, setPnrNumber] = useState<string>('8421095812');
-  const [deliveryStation, setDeliveryStation] = useState<string>('Pune Junction');
-  const [coachBerth, setCoachBerth] = useState<string>('C1 - Berth 24');
+
+  // BUG_011: No hardcoded defaults; empty or populated from user's active bookings
+  const [trainNumber, setTrainNumber] = useState<string>('');
+  const [pnrNumber, setPnrNumber] = useState<string>('');
+  const [deliveryStation, setDeliveryStation] = useState<string>('');
+  const [coachBerth, setCoachBerth] = useState<string>('');
+  const [userBookings, setUserBookings] = useState<Booking[]>([]);
 
   const [orderLoading, setOrderLoading] = useState<boolean>(false);
   const [orderSuccess, setOrderSuccess] = useState<FoodOrder | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // Lock body scroll when checkout modal is open (BUG_009)
+  useBodyScrollLock(showCheckout);
+
+  useEffect(() => {
+    if (!showCheckout) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowCheckout(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCheckout]);
+
+  // Load user's recent bookings for auto-fill
+  useEffect(() => {
+    if (user) {
+      apiClient<Booking[]>('/bookings')
+        .then((b) => setUserBookings(b.filter((bk) => bk.status === 'Confirmed')))
+        .catch(() => {});
+    }
+  }, [user]);
 
   useEffect(() => {
     setLoading(true);
@@ -86,8 +112,23 @@ export const FoodOrderingPage: React.FC = () => {
       return;
     }
 
+    setCheckoutError(null);
+
+    // Validation (BUG_011: enforce real delivery requirements)
+    if (!trainNumber.trim()) {
+      setCheckoutError('Please enter your Train Number.');
+      return;
+    }
+    if (!deliveryStation.trim()) {
+      setCheckoutError('Please specify the Delivery Railway Station.');
+      return;
+    }
+    if (!coachBerth.trim()) {
+      setCheckoutError('Please specify your Coach and Berth (e.g. B2 - 34).');
+      return;
+    }
+
     setOrderLoading(true);
-    setError(null);
 
     const firstRest = cartItems[0].restaurant;
     try {
@@ -95,10 +136,10 @@ export const FoodOrderingPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({
           restaurant_id: firstRest.id,
-          train_number: trainNumber,
-          pnr_number: pnrNumber,
-          delivery_station: deliveryStation,
-          coach_berth: coachBerth,
+          train_number: trainNumber.trim(),
+          pnr_number: pnrNumber.trim() || undefined,
+          delivery_station: deliveryStation.trim(),
+          coach_berth: coachBerth.trim(),
           items: cartItems.map((ci) => ({
             menu_item_id: ci.item.id,
             quantity: ci.qty,
@@ -108,7 +149,7 @@ export const FoodOrderingPage: React.FC = () => {
       setOrderSuccess(res);
       setCart({});
     } catch (err: any) {
-      alert(err.message || 'Order failed');
+      setCheckoutError(err.message || 'Order failed. Please check your wallet balance and details.');
     } finally {
       setOrderLoading(false);
     }
@@ -258,16 +299,32 @@ export const FoodOrderingPage: React.FC = () => {
         </div>
       )}
 
-      {/* CHECKOUT MODAL */}
+      {/* CHECKOUT MODAL (BUG_011 & BUG_009) */}
       {showCheckout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto border border-slate-100">
+        <div 
+          onClick={() => setShowCheckout(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto border border-slate-100 cursor-default"
+          >
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="font-bold text-base text-[#1B254B]">Seat Delivery Checkout</h3>
-              <button onClick={() => setShowCheckout(false)} className="text-slate-400 hover:text-slate-600">
+              <button 
+                onClick={() => setShowCheckout(false)} 
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {checkoutError && (
+              <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl font-medium border border-red-200 flex items-center gap-1.5 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{checkoutError}</span>
+              </div>
+            )}
 
             {orderSuccess ? (
               <div className="py-6 text-center space-y-3">
@@ -286,7 +343,7 @@ export const FoodOrderingPage: React.FC = () => {
                     setShowCheckout(false);
                     setOrderSuccess(null);
                   }}
-                  className="w-full py-3 rounded-2xl bg-orange-600 text-white font-bold text-xs"
+                  className="w-full py-3 rounded-2xl bg-orange-600 text-white font-bold text-xs hover:bg-orange-700 transition"
                 >
                   Done
                 </button>
@@ -305,32 +362,65 @@ export const FoodOrderingPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <label className="font-bold text-slate-700 block">Train & Seat Details</label>
+
+                  {userBookings.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                        Auto-fill From Active Booking
+                      </span>
+                      <select
+                        onChange={(e) => {
+                          const bkId = e.target.value;
+                          if (!bkId) return;
+                          const b = userBookings.find((item) => String(item.id) === bkId);
+                          if (b) {
+                            setTrainNumber(b.train_number);
+                            setPnrNumber(b.pnr_number);
+                            setDeliveryStation(`${b.dest_name} (${b.dest_code})`);
+                            if (b.tickets && b.tickets.length > 0) {
+                              setCoachBerth(`${b.tickets[0].coach} - Berth ${b.tickets[0].berth}`);
+                            }
+                          }
+                        }}
+                        defaultValue=""
+                        className="w-full p-2.5 rounded-xl bg-blue-50/60 border border-blue-200 text-xs font-semibold text-blue-900"
+                      >
+                        <option value="">Select a journey to auto-fill...</option>
+                        {userBookings.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.train_number} - {b.train_name} ({b.source_code} → {b.dest_code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <input
                     type="text"
-                    placeholder="Train Number"
+                    placeholder="Train Number (e.g. 12124)"
                     value={trainNumber}
                     onChange={(e) => setTrainNumber(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
                   />
                   <input
                     type="text"
-                    placeholder="PNR (Optional)"
+                    placeholder="PNR Number (Optional)"
                     value={pnrNumber}
                     onChange={(e) => setPnrNumber(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
                   />
                   <input
                     type="text"
-                    placeholder="Delivery Station"
+                    placeholder="Delivery Railway Station"
                     value={deliveryStation}
                     onChange={(e) => setDeliveryStation(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
                   />
                   <input
                     type="text"
-                    placeholder="Coach & Berth (e.g. B2-45)"
+                    placeholder="Coach & Berth (e.g. B2 - 34)"
                     value={coachBerth}
                     onChange={(e) => setCoachBerth(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
@@ -345,7 +435,7 @@ export const FoodOrderingPage: React.FC = () => {
                 <button
                   onClick={handlePlaceOrder}
                   disabled={orderLoading}
-                  className="w-full py-3.5 rounded-2xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 transition"
+                  className="w-full py-3.5 rounded-2xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-98"
                 >
                   {orderLoading ? 'Placing Order...' : 'Pay with RailOne Wallet & Confirm'}
                 </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
@@ -14,6 +14,7 @@ export const Header: React.FC = () => {
 
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const langMenuRef = useRef<HTMLDivElement>(null);
 
   const fetchUnreadCount = async () => {
     if (!token) {
@@ -37,6 +38,33 @@ export const Header: React.FC = () => {
     return () => window.removeEventListener('notifications:updated', handleUpdate);
   }, [token]);
 
+  // Handle outside click and Escape key to close language dropdown (BUG_001)
+  useEffect(() => {
+    if (!showLangMenu) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setShowLangMenu(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowLangMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showLangMenu]);
+
   const languages: { code: Language; label: string; native: string }[] = [
     { code: 'en', label: 'English', native: 'English' },
     { code: 'hi', label: 'Hindi', native: 'हिंदी' },
@@ -48,10 +76,11 @@ export const Header: React.FC = () => {
       <div className="max-w-[480px] sm:max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         
         {/* LEFT: Circular Language Button (A / अ) */}
-        <div className="relative">
+        <div className="relative" ref={langMenuRef}>
           <button
             onClick={() => setShowLangMenu(!showLangMenu)}
             aria-label="Switch Language"
+            aria-expanded={showLangMenu}
             className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-center text-[#172B63] transition active:scale-95 shadow-xs"
           >
             <div className="flex flex-col items-center leading-none select-none">

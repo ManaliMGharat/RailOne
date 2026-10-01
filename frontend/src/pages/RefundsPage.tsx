@@ -180,7 +180,7 @@ export const RefundsPage: React.FC = () => {
                   <span className="font-mono font-bold text-blue-700">{r.refund_id}</span>
                   <span
                     className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                      r.status === 'Approved' || r.status === 'Processed'
+                      r.status === 'Approved' || r.status === 'Processed' || r.status === 'Completed'
                         ? 'bg-emerald-100 text-emerald-800'
                         : r.status === 'Rejected'
                         ? 'bg-red-100 text-red-800'
