@@ -296,3 +296,43 @@ def test_multi_user_isolation():
     assert profile_b["email"] == f"test_b_{random_id}@railone.in"
     assert profile_b["id"] != profile_a["id"]
 
+
+def test_food_order_and_duplicate_protection():
+    # Login Manali
+    login = client.post("/api/auth/login", json={"username": "manali@railone.in", "password": "manali123"})
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Fetch restaurants
+    rest_res = client.get("/api/food/restaurants?station=PUNE")
+    assert rest_res.status_code == 200
+    rests = rest_res.json()
+    assert len(rests) > 0
+    rest = rests[0]
+    menu_item = rest["menu_items"][0]
+
+    food_req = {
+        "restaurant_id": rest["id"],
+        "train_number": "12125",
+        "pnr_number": "9876543210",
+        "delivery_station": "Pune Junction",
+        "coach_berth": "C1 - Berth 24",
+        "items": [
+            {
+                "menu_item_id": menu_item["id"],
+                "quantity": 1
+            }
+        ]
+    }
+    order_res = client.post("/api/food/orders", json=food_req, headers=headers)
+    assert order_res.status_code == 200, f"Food order failed: {order_res.text}"
+    order_data = order_res.json()
+    assert order_data["status"] == "Preparing"
+    assert len(order_data["items"]) == 1
+    assert order_data["items"][0]["item_name"] == menu_item["name"]
+
+    # Test duplicate-click protection (<10s)
+    dup_res = client.post("/api/food/orders", json=food_req, headers=headers)
+    assert dup_res.status_code == 400
+    assert "Duplicate order detected" in dup_res.json()["detail"]
+

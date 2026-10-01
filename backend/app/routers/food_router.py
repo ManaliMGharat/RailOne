@@ -1,4 +1,5 @@
 import secrets
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -99,10 +100,9 @@ def place_food_order(
         db.flush() # Flush to populate food_order.id without committing
 
         # Create order items
-        for item_name, qty, price, m_id in items_to_create:
+        for item_name, qty, price, _ in items_to_create:
             order_item = FoodOrderItem(
                 order_id=food_order.id,
-                menu_item_id=m_id,
                 item_name=item_name,
                 quantity=qty,
                 price=price
